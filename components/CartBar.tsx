@@ -26,28 +26,37 @@ export function CartBar() {
         </div>
 
         <div className="max-h-32 overflow-y-auto space-y-1 mb-2">
-          {items.map((item) => (
-            <div
-              key={item.product.id}
-              className="flex justify-between items-center gap-2"
-            >
-              <span>
-                {item.quantity}× {item.product.name}
-              </span>
-              <button
-                onClick={() => removeItem(item.product.id)}
-                className="text-[11px] text-red-400 hover:text-red-200"
+          {items.map((item) => {
+            const sizeLabel =
+              item.size === "small"
+                ? "S"
+                : item.size === "medium"
+                ? "M"
+                : "L";
+
+            return (
+              <div
+                key={`${item.product.id}-${item.size}`}
+                className="flex justify-between items-center gap-2"
               >
-                −
-              </button>
-            </div>
-          ))}
+                <span>
+                  {item.quantity}× {item.product.name} ({sizeLabel})
+                </span>
+                <button
+                  onClick={() => removeItem(item.product.id, item.size)}
+                  className="text-[11px] text-red-400 hover:text-red-200"
+                >
+                  −
+                </button>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Här använder vi modalen i stället för alert */}
         <CheckoutModal />
       </div>
     </div>
   );
 }
+
 

@@ -17,8 +17,14 @@ import { pizzeriaConfig } from "@/config/pizzeria.config";
 import type { Product } from "@/data/products";
 
 export function CheckoutModal() {
-  const { items, total, clearCart, addItem, removeItem, setItemCustomizations } =
-    useCart();
+  const {
+    items,
+    total,
+    clearCart,
+    addItem,
+    removeItem,
+    setItemCustomizations,
+  } = useCart();
 
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
@@ -27,16 +33,18 @@ export function CheckoutModal() {
   const [mode, setMode] = useState<"pickup" | "delivery">("pickup");
   const [address, setAddress] = useState("");
 
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
 
   const editingItem =
-    editingProductId != null
-      ? items.find((i) => i.product.id === editingProductId) ?? null
+    editingKey != null
+      ? items.find((i) => `${i.product.id}-${i.size}` === editingKey) ?? null
       : null;
 
   const orderText = items
     .map((item) => {
-      const base = `${item.quantity}× ${item.product.name}`;
+      const sizeLabel =
+        item.size === "small" ? "S" : item.size === "medium" ? "M" : "L";
+      const base = `${item.quantity}× ${item.product.name} (${sizeLabel})`;
       const parts: string[] = [];
 
       if (item.removedIngredients?.length) {
@@ -119,58 +127,77 @@ export function CheckoutModal() {
             {hasItems && (
               <>
                 <div className="max-h-40 overflow-y-auto space-y-2">
-                  {items.map((item) => (
-                    <div
-                      key={item.product.id}
-                      className="flex justify-between items-center gap-2 border-b border-slate-700/60 pb-1"
-                    >
-                      <div className="flex flex-col">
-                        <span>
-                          {item.quantity}× {item.product.name}
-                        </span>
-                        <span className="text-[11px] text-slate-400">
-                          {item.product.price} kr/st
-                        </span>
+                  {items.map((item) => {
+                    const sizeLabel =
+                      item.size === "small"
+                        ? "S"
+                        : item.size === "medium"
+                        ? "M"
+                        : "L";
 
-                        {item.removedIngredients?.length ? (
-                          <span className="text-[11px] text-slate-400">
-                            utan {item.removedIngredients.join(", ")}
+                    return (
+                      <div
+                        key={`${item.product.id}-${item.size}`}
+                        className="flex justify-between items-center gap-2 border-b border-slate-700/60 pb-1"
+                      >
+                        <div className="flex flex-col">
+                          <span>
+                            {item.quantity}× {item.product.name} ({sizeLabel})
                           </span>
-                        ) : null}
+                          <span className="text-[11px] text-slate-400">
+                            {item.unitPrice} kr/st
+                          </span>
 
-                        {item.addedExtras?.length ? (
-                          <span className="text-[11px] text-slate-400">
-                            extra {item.addedExtras.join(", ")}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-1">
+                          {item.removedIngredients?.length ? (
+                            <span className="text-[11px] text-slate-400">
+                              utan {item.removedIngredients.join(", ")}
+                            </span>
+                          ) : null}
+
+                          {item.addedExtras?.length ? (
+                            <span className="text-[11px] text-slate-400">
+                              extra {item.addedExtras.join(", ")}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeItem(item.product.id, item.size)
+                              }
+                              className="w-6 h-6 flex items-center justify-center rounded-full border border-slate-600 text-xs"
+                            >
+                              −
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                addItem(
+                                  item.product,
+                                  item.size,
+                                  item.unitPrice
+                                )
+                              }
+                              className="w-6 h-6 flex items-center justify-center rounded-full border border-slate-600 text-xs"
+                            >
+                              +
+                            </button>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => removeItem(item.product.id)}
-                            className="w-6 h-6 flex items-center justify-center rounded-full border border-slate-600 text-xs"
+                            onClick={() =>
+                              setEditingKey(`${item.product.id}-${item.size}`)
+                            }
+                            className="text-[11px] px-2 py-0.5 rounded-full border border-slate-600"
                           >
-                            −
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => addItem(item.product)}
-                            className="w-6 h-6 flex items-center justify-center rounded-full border border-slate-600 text-xs"
-                          >
-                            +
+                            Anpassa
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setEditingProductId(item.product.id)}
-                          className="text-[11px] px-2 py-0.5 rounded-full border border-slate-600"
-                        >
-                          Anpassa
-                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="mt-2">
@@ -283,18 +310,19 @@ export function CheckoutModal() {
                 </p>
               )}
             </div>
+
             <div className="mt-2 flex flex-col items-center gap-1 text-[11px] text-slate-400">
-            <span>Betalning möjlig med</span>
-            <div className="flex items-center gap-3">
-            <img src="/images/swish.png" alt="Swish" className="h-4" />
-            <img src="/images/klarna.png" alt="Klarna" className="h-4" />
-            <img src="/images/kort.png" alt="kort" className="h-4" />
-            <span className="px-2 py-0.5 rounded-full border border-slate-600">
-            I Butik
-            </span>
-        </div>
-    </div>
-  
+              <span>Betalning möjlig med</span>
+              <div className="flex items-center gap-3">
+                <img src="/images/swish.png" alt="Swish" className="h-4" />
+                <img src="/images/klarna.png" alt="Klarna" className="h-4" />
+                <img src="/images/kort.png" alt="kort" className="h-4" />
+                <span className="px-2 py-0.5 rounded-full border border-slate-600">
+                  I Butik
+                </span>
+              </div>
+            </div>
+
             <Button
               onClick={handleSend}
               className="w-full rounded-full bg-green-600 hover:bg-green-700 mt-2"
@@ -309,10 +337,14 @@ export function CheckoutModal() {
             product={editingItem.product}
             initialRemoved={editingItem.removedIngredients}
             initialAdded={editingItem.addedExtras}
-            onClose={() => setEditingProductId(null)}
+            onClose={() => setEditingKey(null)}
             onSave={(custom) => {
-              setItemCustomizations(editingItem.product.id, custom);
-              setEditingProductId(null);
+              setItemCustomizations(
+                editingItem.product.id,
+                editingItem.size,
+                custom
+              );
+              setEditingKey(null);
             }}
           />
         )}
@@ -428,13 +460,13 @@ function CustomizeModal({
 
         <div className="flex justify-end gap-2 pt-2">
           <Button
-        type="button"
-        size="sm"
-        className="rounded-full bg-red-500 hover:bg-red-600 text-black text-xs"
-        onClick={onClose}
-        >
-        Avbryt
-        </Button>
+            type="button"
+            size="sm"
+            className="rounded-full bg-red-500 hover:bg-red-600 text-black text-xs"
+            onClick={onClose}
+          >
+            Avbryt
+          </Button>
 
           <Button
             type="button"
@@ -449,6 +481,7 @@ function CustomizeModal({
     </div>
   );
 }
+
 
 
 

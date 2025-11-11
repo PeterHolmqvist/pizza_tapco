@@ -3,20 +3,25 @@
 import { createContext, useContext, useMemo, useState, ReactNode } from "react";
 import type { Product } from "@/data/products";
 
+export type PizzaSize = "small" | "medium" | "large";
+
 type CartItem = {
   product: Product;
   quantity: number;
+  size: PizzaSize;
+  unitPrice: number;
   removedIngredients?: string[];
   addedExtras?: string[];
 };
 
 type CartContextValue = {
   items: CartItem[];
-  addItem: (product: Product) => void;
-  removeItem: (productId: string) => void;
+  addItem: (product: Product, size: PizzaSize, unitPrice: number) => void;
+  removeItem: (productId: string, size: PizzaSize) => void;
   clearCart: () => void;
   setItemCustomizations: (
     productId: string,
+    size: PizzaSize,
     custom: {
       removedIngredients?: string[];
       addedExtras?: string[];
@@ -31,25 +36,27 @@ const CartContext = createContext<CartContextValue | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  function addItem(product: Product) {
+  function addItem(product: Product, size: PizzaSize, unitPrice: number) {
     setItems((prev) => {
-      const existing = prev.find((i) => i.product.id === product.id);
+      const existing = prev.find(
+        (i) => i.product.id === product.id && i.size === size
+      );
       if (existing) {
         return prev.map((i) =>
-          i.product.id === product.id
+          i.product.id === product.id && i.size === size
             ? { ...i, quantity: i.quantity + 1 }
             : i
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: 1, size, unitPrice }];
     });
   }
 
-  function removeItem(productId: string) {
+  function removeItem(productId: string, size: PizzaSize) {
     setItems((prev) =>
       prev
         .map((i) =>
-          i.product.id === productId
+          i.product.id === productId && i.size === size
             ? { ...i, quantity: i.quantity - 1 }
             : i
         )
@@ -63,6 +70,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   function setItemCustomizations(
     productId: string,
+    size: PizzaSize,
     custom: {
       removedIngredients?: string[];
       addedExtras?: string[];
@@ -70,17 +78,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   ) {
     setItems((prev) =>
       prev.map((i) =>
-        i.product.id === productId ? { ...i, ...custom } : i
+        i.product.id === productId && i.size === size ? { ...i, ...custom } : i
       )
     );
   }
 
   const total = useMemo(
     () =>
-      items.reduce(
-        (sum, item) => sum + item.product.price * item.quantity,
-        0
-      ),
+      items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [items]
   );
 
@@ -109,4 +114,5 @@ export function useCart() {
   }
   return ctx;
 }
+
 

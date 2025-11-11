@@ -24,7 +24,7 @@ export function GallerySection() {
   }, [current, gallery.length]);
 
   return (
-    <section className={`${theme.sectionBg} py-10`}>
+    <section id="gallery" className={`${theme.sectionBg} py-10`}>
       <div className="max-w-5xl mx-auto px-4">
         <h2 className={`${theme.h2} text-center mb-6`}>Galleri</h2>
 

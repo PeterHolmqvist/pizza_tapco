@@ -14,7 +14,7 @@ export function OpeningHoursSection() {
   const { openingHours, theme } = pizzeriaConfig;
 
   return (
-    <section className={`${theme.sectionBg} py-8`}>
+    <section id="opening-hours" className={`${theme.sectionBg} py-8`}>
       <div className="max-w-md mx-auto px-4">
         <h2 className={`${theme.h2} text-center mb-4`}>Öppettider</h2>
         <div className={`space-y-1 text-sm ${theme.bodyText}`}>

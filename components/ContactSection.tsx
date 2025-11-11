@@ -7,7 +7,7 @@ export function ContactSection() {
     pizzeriaConfig;
 
   return (
-    <section className={`${theme.sectionBg} py-10`}>
+    <section id="contact" className={`${theme.sectionBg} py-10`}>
       <div className="max-w-5xl mx-auto px-4 grid gap-6 md:grid-cols-2">
         {/* vänster */}
         <div className="space-y-4">
@@ -19,18 +19,21 @@ export function ContactSection() {
                 {phone}
               </a>
             </p>
-            <p className={`text-sm mb-4 ${theme.bodyText}`}>Adress: {address}</p>
+            <p
+  className={`text-sm mb-4 ${theme.bodyText}`}
+  dangerouslySetInnerHTML={{ __html: `Adress: ${address}` }}
+></p>
           </div>
 
           <div className="flex items-center gap-3 text-slate-300">
-            {socials.instagram && (
-              <a href={socials.instagram} target="_blank" rel="noreferrer" className="hover:text-white">
-                <FaInstagram size={18} />
-              </a>
-            )}
             {socials.facebook && (
               <a href={socials.facebook} target="_blank" rel="noreferrer" className="hover:text-white">
                 <FaFacebook size={18} />
+              </a>
+            )}
+            {socials.instagram && (
+              <a href={socials.instagram} target="_blank" rel="noreferrer" className="hover:text-white">
+                <FaInstagram size={18} />
               </a>
             )}
             {socials.tiktok && (

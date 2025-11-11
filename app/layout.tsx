@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   title: pizzeriaConfig.seo.title,
   description: pizzeriaConfig.seo.description,
   keywords: pizzeriaConfig.seo.keywords,
+  icons: "/favicon.svg",
+  
 };
 
 export default function RootLayout({

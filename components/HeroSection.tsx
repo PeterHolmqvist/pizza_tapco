@@ -9,7 +9,7 @@ export function HeroSection() {
   const [showNumber, setShowNumber] = useState(false);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center text-center px-4 overflow-hidden">
+    <section id="home" className="relative min-h-screen flex items-center justify-center text-center px-4 overflow-hidden">
       {/* Bakgrundsbild */}
       {heroImage && (
         <Image
@@ -18,12 +18,13 @@ export function HeroSection() {
           fill
           priority
           sizes="100vw"
-          className="object-cover scale-105"
+          className="object-cover scale-100"
         />
       )}
 
       {/* Mörk overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
+      {/* Mörk overlay */}
+<div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/75 to-black/90" />
 
       {/* Innehåll */}
       <div className="relative z-10 flex flex-col items-center">
@@ -31,9 +32,9 @@ export function HeroSection() {
           <Image
             src={logo}
             alt={`${name} logo`}
-            width={96}
-            height={96}
-            className="mb-4"
+            width={300}
+            height={180}
+            className="mb-4 w-32 h-32 md:w-40 md:h-40 shadow-lg"
           />
         )}
 

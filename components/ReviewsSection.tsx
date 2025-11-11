@@ -30,7 +30,7 @@ export function ReviewsSection() {
             >
               <FaStar className="text-yellow-400" size={12} />
               <span className="font-semibold">
-                {ratings.google.toFixed(1)}
+                {Number(ratings.google).toFixed(1)}
               </span>
               <span className="text-[10px] uppercase tracking-wide text-slate-300">
                 Google
@@ -52,7 +52,7 @@ export function ReviewsSection() {
             >
               <FaStar className="text-yellow-400" size={12} />
               <span className="font-semibold">
-                {ratings.foodora.toFixed(1)}
+                {Number(ratings.foodora).toFixed(1)}
               </span>
               <span className="text-[10px] uppercase tracking-wide text-slate-300">
                 Foodora
@@ -67,7 +67,7 @@ export function ReviewsSection() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3 text-left">
-          {reviews.map((rev, i) => (
+          {reviews.map((rev: any, i: number) => (
             <div
               key={i}
               className="rounded-lg border border-slate-700/60 p-3 text-xs sm:text-sm"
@@ -97,6 +97,7 @@ export function ReviewsSection() {
     </section>
   );
 }
+
 
 
 

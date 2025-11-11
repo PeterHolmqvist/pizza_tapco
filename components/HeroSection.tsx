@@ -30,12 +30,12 @@ export function HeroSection() {
       <div className="relative z-10 flex flex-col items-center">
         {logo && (
           <Image
-            src={logo}
-            alt={`${name} logo`}
-            width={300}
-            height={180}
-            className="mb-4 w-32 h-32 md:w-40 md:h-40 shadow-lg"
-          />
+  src={logo}
+  alt={name}
+  width={1600}       // originalstorlek, bara för aspekt
+  height={1000}
+  className="mx-auto h-auto w-[300px] md:w-[420px] lg:w-[500px] object-contain"
+/>
         )}
 
         <h1 className={theme.h1}>{name}</h1>

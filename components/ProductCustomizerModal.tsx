@@ -47,11 +47,20 @@ export function ProductCustomizerModal({ product, size, basePrice, onClose, onAd
 
   const sizeLabel = size === "small" ? "S" : size === "medium" ? "M" : "L";
   const selectedCount = selected.length;
+  const hasUnsavedChanges =
+    JSON.stringify([...removed].sort()) !== JSON.stringify([...initialRemoved].sort()) ||
+    JSON.stringify(selected.map((option) => option.id).sort()) !== JSON.stringify(initialSelectedOptions.map((option) => option.id).sort()) ||
+    specialInstructions !== initialSpecialInstructions;
+
+  function handleClose() {
+    if (hasUnsavedChanges && !window.confirm("Du har gjort ändringar som inte lagts i varukorgen. Vill du kasta dem?")) return;
+    onClose();
+  }
 
   return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         role="dialog"
@@ -188,7 +197,7 @@ export function ProductCustomizerModal({ product, size, basePrice, onClose, onAd
           />
         </section>
 
-        <div className="mt-5 flex items-center justify-between border-t border-slate-700 pt-4">
+        <div className="sticky bottom-[-20px] z-10 -mx-5 mt-5 flex items-center justify-between border-t border-slate-700 bg-slate-900 px-5 pb-2 pt-4">
           <div>
             <p className="text-xs text-slate-400">Pris per pizza</p>
             <p className="text-xl font-bold">{total} kr</p>

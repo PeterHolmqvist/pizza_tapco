@@ -25,7 +25,11 @@ export default function AdminLoginPage() {
       setError("Inloggningen misslyckades. Kontrollera e-post och lösenord.");
       return;
     }
-    router.replace("/admin");
+    const requestedPath = new URLSearchParams(window.location.search).get("next");
+    const destination = requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
+      ? requestedPath
+      : "/admin";
+    router.replace(destination);
   }
 
   return (

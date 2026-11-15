@@ -92,6 +92,7 @@ export function CheckoutModal() {
   const hasItems = items.length > 0;
 
   return (
+    <>
     <Dialog
       onOpenChange={(open) => {
         if (!open) {
@@ -343,6 +344,7 @@ export function CheckoutModal() {
         }}
       />
     ) : null}
+    </>
   );
 }
 

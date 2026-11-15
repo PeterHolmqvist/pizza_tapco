@@ -10,14 +10,18 @@ type Props = {
   size: PizzaSize;
   basePrice: number;
   onClose: () => void;
+  initialRemoved?: string[];
+  initialSelectedOptions?: ProductOption[];
+  initialSpecialInstructions?: string;
+  actionLabel?: string;
   onAdd: (price: number, custom: { removedIngredients?: string[]; selectedOptions?: ProductOption[]; specialInstructions?: string }) => void;
 };
 
-export function ProductCustomizerModal({ product, size, basePrice, onClose, onAdd }: Props) {
+export function ProductCustomizerModal({ product, size, basePrice, onClose, onAdd, initialRemoved = [], initialSelectedOptions = [], initialSpecialInstructions = "", actionLabel = "Lägg i varukorg" }: Props) {
   const groups = getProductOptionGroups(product.id);
-  const [removed, setRemoved] = useState<string[]>([]);
-  const [selected, setSelected] = useState<ProductOption[]>([]);
-  const [specialInstructions, setSpecialInstructions] = useState("");
+  const [removed, setRemoved] = useState<string[]>(initialRemoved);
+  const [selected, setSelected] = useState<ProductOption[]>(initialSelectedOptions);
+  const [specialInstructions, setSpecialInstructions] = useState(initialSpecialInstructions);
   const [extrasOpen, setExtrasOpen] = useState(false);
   const total = useMemo(
     () => basePrice + selected.reduce((sum, option) => sum + option.price, 0),
@@ -199,7 +203,7 @@ export function ProductCustomizerModal({ product, size, basePrice, onClose, onAd
             }
             className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
           >
-            Lägg i varukorg
+            {actionLabel}
           </button>
         </div>
       </div>

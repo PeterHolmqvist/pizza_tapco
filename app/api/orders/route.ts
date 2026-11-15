@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { products } from "@/data/products";
-import { getProductOptionGroups, optionCatalog } from "@/data/product-options";
 
 type Size = "small" | "medium" | "large";
 type IncomingItem = {
@@ -12,14 +10,6 @@ type IncomingItem = {
   removedIngredients?: string[];
   specialInstructions?: string;
 };
-
-const catalog = products as unknown as Array<{
-  id: string;
-  name: string;
-  priceSmall: number;
-  priceMedium: number;
-  priceLarge: number;
-}>;
 
 function isText(value: unknown, max = 300): value is string {
   return typeof value === "string" && value.trim().length > 0 && value.length <= max;
@@ -65,6 +55,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Restaurangen är inte konfigurerad ännu." }, { status: 503 });
     }
 
+    const catalogKeys = [...new Set(items.map((item) => item?.productId).filter((id): id is string => typeof id === "string"))];
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id,catalog_key,name,price_small,price_medium,price_large,ingredients,is_available")
+      .eq("restaurant_id", restaurant.id)
+      .eq("is_available", true)
+      .in("catalog_key", catalogKeys);
+
+    if (productsError || !products) {
+      return NextResponse.json({ error: "Menyn kunde inte läsas." }, { status: 503 });
+    }
+
+    const productIds = products.map((product) => product.id);
+    const { data: links, error: linksError } = await supabase
+      .from("product_option_links")
+      .select("product_id,product_options(id,option_key,name,price,option_type,is_active)")
+      .eq("restaurant_id", restaurant.id)
+      .in("product_id", productIds);
+
+    if (linksError) {
+      return NextResponse.json({ error: "Produktens tillval kunde inte läsas." }, { status: 503 });
+    }
+
+    const allowedByProduct = new Map<string, Map<string, { id: string; name: string; price: number }>>();
+    for (const link of links ?? []) {
+      const option = Array.isArray(link.product_options) ? link.product_options[0] : link.product_options;
+      if (!option || !option.is_active || !option.option_key) continue;
+      const map = allowedByProduct.get(link.product_id) ?? new Map();
+      map.set(option.option_key, { id: option.option_key, name: option.name, price: Number(option.price) });
+      allowedByProduct.set(link.product_id, map);
+    }
+
     const validatedItems = [];
     let subtotal = 0;
 
@@ -75,64 +97,65 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "En eller flera varor är ogiltiga." }, { status: 400 });
       }
 
-      const product = catalog.find((entry) => entry.id === item.productId);
+      const product = products.find((entry) => entry.catalog_key === item.productId);
       if (!product) {
-        return NextResponse.json({ error: "En produkt kunde inte hittas." }, { status: 400 });
+        return NextResponse.json({ error: "En produkt är inte längre tillgänglig." }, { status: 400 });
       }
 
-      const basePrice = item.size === "small" ? product.priceSmall
-        : item.size === "medium" ? product.priceMedium : product.priceLarge;
+      const basePrice = item.size === "small" ? Number(product.price_small)
+        : item.size === "medium" ? Number(product.price_medium) : Number(product.price_large);
 
       if (!Number.isFinite(basePrice) || basePrice < 0) {
         return NextResponse.json({ error: "Produkten saknar ett giltigt pris." }, { status: 400 });
       }
 
-      const allowedOptions = getProductOptionGroups(product.id).flatMap((group) => group.options);
+      const allowedOptions = allowedByProduct.get(product.id) ?? new Map();
       const selectedIds = Array.isArray(item.selectedOptionIds) ? item.selectedOptionIds : [];
-      if (selectedIds.length > 15 || selectedIds.some((id) => !allowedOptions.some((option) => option.id === id))) {
+      if (selectedIds.length > 15 || new Set(selectedIds).size !== selectedIds.length ||
+          selectedIds.some((id) => !allowedOptions.has(id))) {
         return NextResponse.json({ error: "Ett eller flera tillval är ogiltiga." }, { status: 400 });
       }
 
-      const selectedOptions = selectedIds.map((id) => {
-        const option = optionCatalog.find((entry) => entry.id === id)!;
-        return { id: option.id, name: option.name, price: option.price };
-      });
+      const selectedOptions = selectedIds.map((id) => allowedOptions.get(id)!);
       const unitPrice = basePrice + selectedOptions.reduce((sum, option) => sum + option.price, 0);
       const lineTotal = unitPrice * item.quantity;
       subtotal += lineTotal;
 
+      const ingredients = Array.isArray(product.ingredients) ? product.ingredients : [];
+      const removed = Array.isArray(item.removedIngredients)
+        ? item.removedIngredients.filter((value) => typeof value === "string" && ingredients.includes(value)).slice(0, 30)
+        : [];
+
       validatedItems.push({
         restaurant_id: restaurant.id,
-        product_id: null,
+        product_id: product.id,
         product_name: product.name + " (" + item.size + ")",
         quantity: item.quantity,
         unit_price: unitPrice,
         selected_options: selectedOptions,
-        removed_ingredients: Array.isArray(item.removedIngredients)
-          ? item.removedIngredients.filter((value) => typeof value === "string").slice(0, 30)
-          : [],
+        removed_ingredients: removed,
         special_instructions: isText(item.specialInstructions, 500) ? item.specialInstructions.trim() : null,
         line_total: lineTotal,
       });
     }
 
     const phone = customer.phone.trim();
-    const { data: existingCustomer } = await supabase
+    const { data: existingCustomer, error: customerLookupError } = await supabase
       .from("customers")
       .select("id")
       .eq("restaurant_id", restaurant.id)
       .eq("phone", phone)
       .maybeSingle();
 
+    if (customerLookupError) {
+      return NextResponse.json({ error: "Kunduppgifterna kunde inte kontrolleras." }, { status: 500 });
+    }
+
     let customerId = existingCustomer?.id;
     if (!customerId) {
       const { data: newCustomer, error: customerError } = await supabase
         .from("customers")
-        .insert({
-          restaurant_id: restaurant.id,
-          name: customer.name.trim(),
-          phone,
-        })
+        .insert({ restaurant_id: restaurant.id, name: customer.name.trim(), phone })
         .select("id")
         .single();
 
@@ -140,6 +163,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Kunduppgifterna kunde inte sparas." }, { status: 500 });
       }
       customerId = newCustomer.id;
+    } else {
+      await supabase.from("customers").update({ name: customer.name.trim() }).eq("id", customerId);
     }
 
     const orderNumber = "T" + Date.now().toString();
@@ -160,7 +185,7 @@ export async function POST(request: Request) {
         status: "new",
         payment_status: "pending",
       })
-      .select("id, order_number")
+      .select("id,order_number")
       .single();
 
     if (orderError || !order) {

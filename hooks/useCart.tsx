@@ -15,11 +15,12 @@ export type CartItem = {
   removedIngredients?: string[];
   addedExtras?: string[];
   selectedOptions?: ProductOption[];
+  specialInstructions?: string;
 };
 
 type CartContextValue = {
   items: CartItem[];
-  addItem: (product: Product, size: PizzaSize, unitPrice: number, custom?: { removedIngredients?: string[]; selectedOptions?: ProductOption[] }) => void;
+  addItem: (product: Product, size: PizzaSize, unitPrice: number, custom?: { removedIngredients?: string[]; selectedOptions?: ProductOption[]; specialInstructions?: string }) => void;
   removeItem: (productId: string, size: PizzaSize, lineId?: string) => void;
   clearCart: () => void;
   setItemCustomizations: (productId: string, size: PizzaSize, custom: { removedIngredients?: string[]; addedExtras?: string[] }, lineId?: string) => void;
@@ -32,7 +33,7 @@ const CartContext = createContext<CartContextValue | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  function addItem(product: Product, size: PizzaSize, unitPrice: number, custom: { removedIngredients?: string[]; selectedOptions?: ProductOption[] } = {}) {
+  function addItem(product: Product, size: PizzaSize, unitPrice: number, custom: { removedIngredients?: string[]; selectedOptions?: ProductOption[]; specialInstructions?: string } = {}) {
     setItems((prev) => {
       const selectedOptions = custom.selectedOptions ?? [];
       const removedIngredients = custom.removedIngredients ?? [];
@@ -40,7 +41,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         item.product.id === product.id &&
         item.size === size &&
         JSON.stringify(item.removedIngredients ?? []) === JSON.stringify(removedIngredients) &&
-        JSON.stringify((item.selectedOptions ?? []).map((option) => option.id).sort()) === JSON.stringify(selectedOptions.map((option) => option.id).sort())
+        JSON.stringify((item.selectedOptions ?? []).map((option) => option.id).sort()) === JSON.stringify(selectedOptions.map((option) => option.id).sort()) &&
+        (item.specialInstructions ?? "") === (custom.specialInstructions ?? "")
       );
 
       if (existing) {
@@ -56,6 +58,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removedIngredients: removedIngredients.length ? removedIngredients : undefined,
         addedExtras: selectedOptions.map((option) => option.name),
         selectedOptions: selectedOptions.length ? selectedOptions : undefined,
+        specialInstructions: custom.specialInstructions?.trim() || undefined,
       }];
     });
   }

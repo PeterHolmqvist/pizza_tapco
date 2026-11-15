@@ -36,14 +36,14 @@ export function CartBar() {
 
             return (
               <div
-                key={`${item.product.id}-${item.size}`}
+                key={item.lineId}
                 className="flex justify-between items-center gap-2"
               >
                 <span>
                   {item.quantity}× {item.product.name} ({sizeLabel})
                 </span>
                 <button
-                  onClick={() => removeItem(item.product.id, item.size)}
+                  onClick={() => removeItem(item.product.id, item.size, item.lineId)}
                   className="text-[11px] text-red-400 hover:text-red-200"
                 >
                   −

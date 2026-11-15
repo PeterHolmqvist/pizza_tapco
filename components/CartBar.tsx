@@ -11,49 +11,83 @@ export function CartBar() {
   if (totalCount === 0) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 max-w-md w-[90vw]">
-      <div className="rounded-xl bg-black/80 border border-slate-700 px-4 py-3 text-xs sm:text-sm">
-        <div className="flex justify-between items-center mb-2">
-          <span className={theme.bodyText}>
-            Varukorg: {totalCount} st · {total} kr
-          </span>
+    <div className="fixed bottom-4 left-1/2 z-40 w-[92vw] max-w-md -translate-x-1/2">
+      <div className="rounded-2xl border border-slate-700 bg-slate-950/95 p-4 text-white shadow-2xl backdrop-blur">
+        <div className="mb-3 flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <p className="text-sm font-semibold text-white">Din beställning</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">
+              {totalCount} {totalCount === 1 ? "vara" : "varor"} i varukorgen
+            </p>
+          </div>
           <button
+            type="button"
             onClick={clearCart}
-            className="text-[11px] underline text-slate-400 hover:text-slate-200"
+            className="text-xs text-slate-400 underline underline-offset-2 transition hover:text-white"
           >
-            Töm
+            Töm varukorg
           </button>
         </div>
 
-        <div className="max-h-32 overflow-y-auto space-y-1 mb-2">
+        <div className="mb-3 max-h-36 space-y-3 overflow-y-auto pr-1">
           {items.map((item) => {
             const sizeLabel =
-              item.size === "small"
-                ? "S"
-                : item.size === "medium"
-                ? "M"
-                : "L";
+              item.size === "small" ? "S" : item.size === "medium" ? "M" : "L";
+            const lineTotal = item.unitPrice * item.quantity;
 
             return (
               <div
                 key={item.lineId}
-                className="flex justify-between items-center gap-2"
+                className="flex items-start justify-between gap-3"
               >
                 <div className="min-w-0 flex-1">
-                  <span>{item.quantity}× {item.product.name} ({sizeLabel})</span>
-                  {item.removedIngredients?.length ? <div className="text-[10px] text-slate-400">Utan {item.removedIngredients.join(", ")}</div> : null}
-                  {item.addedExtras?.length ? <div className="text-[10px] text-slate-400">Extra {item.addedExtras.join(", ")}</div> : null}
-                  {item.specialInstructions ? <div className="text-[10px] text-amber-300">{item.specialInstructions}</div> : null}
+                  <p className="text-xs font-semibold text-slate-100">
+                    {item.quantity} × {item.product.name}
+                    <span className="ml-1 font-normal text-slate-400">({sizeLabel})</span>
+                  </p>
+                  {item.removedIngredients?.length ? (
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                      Utan {item.removedIngredients.join(", ")}
+                    </p>
+                  ) : null}
+                  {item.addedExtras?.length ? (
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                      Extra: {item.addedExtras.join(", ")}
+                    </p>
+                  ) : null}
+                  {item.specialInstructions ? (
+                    <p className="mt-0.5 text-[10px] text-amber-300">
+                      Önskemål: {item.specialInstructions}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    {item.unitPrice} kr/st
+                  </p>
                 </div>
-                <button
-                  onClick={() => removeItem(item.product.id, item.size, item.lineId)}
-                  className="text-[11px] text-red-400 hover:text-red-200"
-                >
-                  −
-                </button>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs font-semibold tabular-nums text-slate-200">
+                    {lineTotal} kr
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Ta bort en ${item.product.name}`}
+                    onClick={() => removeItem(item.product.id, item.size, item.lineId)}
+                    className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 text-sm text-slate-400 transition hover:border-red-400 hover:text-red-300"
+                  >
+                    −
+                  </button>
+                </div>
               </div>
             );
           })}
+        </div>
+
+        <div className="mb-3 flex items-end justify-between border-t border-slate-800 pt-3">
+          <span className="text-xs font-medium text-slate-300">Att betala</span>
+          <span className="text-2xl font-bold leading-none tabular-nums text-white">
+            {total} <span className="text-sm font-semibold text-slate-300">kr</span>
+          </span>
         </div>
 
         <CheckoutModal />
@@ -61,5 +95,3 @@ export function CartBar() {
     </div>
   );
 }
-
-

@@ -141,7 +141,7 @@ export default function OrderTrackingPage() {
             </section>
 
             <p className="flex items-center justify-center gap-2 text-center text-xs text-slate-500"><RefreshCw size={12} /> Status uppdateras automatiskt</p>
-            {!terminal && <p className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4 text-center text-sm text-orange-100">Stanna gärna kvar på sidan för att följa din order. Du kan också komma tillbaka via länken i ditt SMS.</p>}
+            {!terminal && <p className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4 text-center text-sm text-orange-100">Stanna gärna kvar på sidan för att följa din order. Spara länken om du vill komma tillbaka senare.</p>}
           </div>
         ) : null}
       </div>

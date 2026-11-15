@@ -49,6 +49,8 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [sound, setSound] = useState(false);
   const [tab, setTab] = useState<"active" | "history">("active");
+  const [pendingAcceptance, setPendingAcceptance] = useState<Order | null>(null);
+  const [etaMinutes, setEtaMinutes] = useState("20");
   const lastNewCount = useRef(0);
   const soundEnabled = useRef(false);
 
@@ -100,19 +102,19 @@ export default function AdminPage() {
     return () => window.clearInterval(timer);
   }, [loadOrders]);
 
-  async function changeStatus(order: Order, status: string) {
+  async function changeStatus(order: Order, status: string, minutes?: number) {
+    if (status === "accepted" && minutes === undefined) {
+      setEtaMinutes("20");
+      setPendingAcceptance(order);
+      return;
+    }
     setWorking(order.id);
     setError("");
     const { data } = await supabaseBrowser.auth.getSession();
     const token = data.session?.access_token;
     if (!token) { router.replace("/admin/login"); return; }
     let estimatedReadyAt: string | undefined;
-    if (status === "accepted") {
-      const minutes = Number(window.prompt("Beräknad tid till upphämtning i minuter:", "20"));
-      if (!Number.isFinite(minutes) || minutes < 1 || minutes > 720) {
-        setWorking(null);
-        return;
-      }
+    if (status === "accepted" && minutes !== undefined) {
       estimatedReadyAt = new Date(Date.now() + minutes * 60 * 1000).toISOString();
     }
     const response = await fetch("/api/admin/orders", {
@@ -124,6 +126,13 @@ export default function AdminPage() {
     if (!response.ok) setError(result.error || "Statusen kunde inte ändras.");
     await loadOrders(false);
     setWorking(null);
+    if (status === "accepted") setPendingAcceptance(null);
+  }
+
+  function confirmAcceptance() {
+    const minutes = Number(etaMinutes);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 720 || !pendingAcceptance) return;
+    void changeStatus(pendingAcceptance, "accepted", minutes);
   }
 
   async function signOut() {
@@ -152,6 +161,19 @@ export default function AdminPage() {
         </div>
       </header>
 
+      {pendingAcceptance && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={(event) => { if (event.target === event.currentTarget) setPendingAcceptance(null); }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="eta-title" className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+          <h2 id="eta-title" className="text-xl font-bold">Bekräfta beställningen</h2>
+          <p className="mt-2 text-sm text-slate-600">Ange ungefär hur många minuter det tar innan order #{pendingAcceptance.order_number} är klar för upphämtning.</p>
+          <label htmlFor="eta-minutes" className="mt-5 block text-sm font-semibold text-slate-700">Beräknad tid (minuter)</label>
+          <input id="eta-minutes" type="number" min="1" max="720" step="1" inputMode="numeric" value={etaMinutes} onChange={(event) => setEtaMinutes(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") confirmAcceptance(); }} className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-lg font-semibold outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100" autoFocus />
+          <p className="mt-2 text-xs text-slate-500">1–720 minuter. Tiden visas för kunden efter bekräftelsen.</p>
+          <div className="mt-6 flex gap-3">
+            <button type="button" onClick={() => setPendingAcceptance(null)} className="flex-1 rounded-lg border border-slate-300 px-4 py-3 font-semibold text-slate-700">Avbryt</button>
+            <button type="button" onClick={confirmAcceptance} disabled={!Number.isInteger(Number(etaMinutes)) || Number(etaMinutes) < 1 || Number(etaMinutes) > 720 || working !== null} className="flex-1 rounded-lg bg-orange-600 px-4 py-3 font-bold text-white hover:bg-orange-700 disabled:opacity-50">Bekräfta order</button>
+          </div>
+        </section>
+      </div>}
       <section className="mx-auto max-w-5xl px-3 py-4 sm:px-4">
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-white p-4 shadow-sm"><p className="text-sm text-slate-500">Nya beställningar</p><p className="mt-1 text-3xl font-bold">{newCount}</p></div>

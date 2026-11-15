@@ -30,9 +30,11 @@ const nextStatus: Record<string, { status: string; label: string }> = {
 };
 
 function paymentLabel(status: string) {
-  return status === "paid"
-    ? { label: "Betald", className: "bg-red-100 text-red-800" }
-    : { label: "Betalas i butik", className: "bg-green-100 text-green-800" };
+  if (status === "paid") return { label: "Betald", className: "bg-red-100 text-red-800" };
+  if (status === "pending") return { label: "Betalas i butik", className: "bg-green-100 text-green-800" };
+  if (status === "failed") return { label: "Betalning misslyckades", className: "bg-amber-100 text-amber-800" };
+  if (status === "refunded") return { label: "Återbetald", className: "bg-slate-100 text-slate-700" };
+  return { label: "Delvis återbetald", className: "bg-amber-100 text-amber-800" };
 }
 function timeLabel(value: string) {
   return new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));

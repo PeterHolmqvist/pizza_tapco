@@ -44,6 +44,7 @@ export function CheckoutModal() {
       if (item.addedExtras?.length) {
         parts.push(`extra ${item.addedExtras.join(", ")}`);
       }
+      if (item.specialInstructions) parts.push(`önskemål: ${item.specialInstructions}`);
 
       return parts.length ? `${base} (${parts.join("; ")})` : base;
     })
@@ -150,6 +151,9 @@ export function CheckoutModal() {
                               extra {item.addedExtras.join(", ")}
                             </span>
                           ) : null}
+                          {item.specialInstructions ? (
+                            <span className="text-[11px] text-amber-300">Önskemål: {item.specialInstructions}</span>
+                          ) : null}
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center gap-1">
@@ -169,7 +173,7 @@ export function CheckoutModal() {
                                   item.product,
                                   item.size,
                                   item.unitPrice,
-                                  { removedIngredients: item.removedIngredients, selectedOptions: item.selectedOptions }
+                                  { removedIngredients: item.removedIngredients, selectedOptions: item.selectedOptions, specialInstructions: item.specialInstructions }
                                 )
                               }
                               className="w-6 h-6 flex items-center justify-center rounded-full border border-slate-600 text-xs"

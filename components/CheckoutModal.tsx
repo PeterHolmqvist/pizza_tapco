@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { useCart } from "@/hooks/useCart";
 import { createOrderFromCart, orderToMessage } from "@/lib/order";
 import { pizzeriaConfig } from "@/config/pizzeria.config";
+import { ProductCustomizerModal } from "@/components/ProductCustomizerModal";
 
 export function CheckoutModal() {
   const {
@@ -22,6 +23,7 @@ export function CheckoutModal() {
     clearCart,
     addItem,
     removeItem,
+    updateItem,
   } = useCart();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -30,6 +32,8 @@ export function CheckoutModal() {
   const [note, setNote] = useState("");
   const [mode, setMode] = useState<"pickup" | "delivery">("pickup");
   const [address, setAddress] = useState("");
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const editingItem = items.find((item) => item.lineId === editingLineId) ?? null;
 
   const orderText = items
     .map((item) => {
@@ -132,7 +136,7 @@ export function CheckoutModal() {
                         key={item.lineId}
                         className="flex justify-between items-center gap-2 border-b border-slate-700/60 pb-1"
                       >
-                        <div className="flex flex-col">
+                        <div className="flex min-w-0 flex-1 flex-col">
                           <span>
                             {item.quantity}× {item.product.name} ({sizeLabel})
                           </span>
@@ -156,6 +160,7 @@ export function CheckoutModal() {
                           ) : null}
                         </div>
                         <div className="flex flex-col items-end gap-1">
+                          <button type="button" onClick={() => setEditingLineId(item.lineId)} className="text-[10px] text-slate-300 underline underline-offset-2 hover:text-white">Ändra</button>
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
@@ -321,6 +326,23 @@ export function CheckoutModal() {
 
       </DialogContent>
     </Dialog>
+    {editingItem ? (
+      <ProductCustomizerModal
+        key={editingItem.lineId}
+        product={editingItem.product}
+        size={editingItem.size}
+        basePrice={editingItem.unitPrice - (editingItem.selectedOptions ?? []).reduce((sum, option) => sum + option.price, 0)}
+        initialRemoved={editingItem.removedIngredients}
+        initialSelectedOptions={editingItem.selectedOptions}
+        initialSpecialInstructions={editingItem.specialInstructions}
+        actionLabel="Spara ändringar"
+        onClose={() => setEditingLineId(null)}
+        onAdd={(price, custom) => {
+          updateItem(editingItem.lineId, price, custom);
+          setEditingLineId(null);
+        }}
+      />
+    ) : null}
   );
 }
 

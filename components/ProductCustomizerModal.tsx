@@ -60,7 +60,6 @@ export function ProductCustomizerModal({ product, size, basePrice, onClose, onAd
   return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
-      onClick={handleClose}
     >
       <div
         role="dialog"
@@ -80,11 +79,10 @@ export function ProductCustomizerModal({ product, size, basePrice, onClose, onAd
           </div>
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Stäng"
-            className="rounded-full px-2 py-1 text-slate-400 hover:bg-slate-800"
+            onClick={handleClose}
+            className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
           >
-            ✕
+            Avbryt
           </button>
         </div>
 

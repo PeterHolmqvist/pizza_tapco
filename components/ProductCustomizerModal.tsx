@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Product } from "@/data/products";
 import { getProductOptionGroups, type ProductOption } from "@/data/product-options";
 import type { PizzaSize } from "@/hooks/useCart";
@@ -47,9 +48,9 @@ export function ProductCustomizerModal({ product, size, basePrice, onClose, onAd
   const sizeLabel = size === "small" ? "S" : size === "medium" ? "M" : "L";
   const selectedCount = selected.length;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
       onClick={onClose}
     >
       <div
@@ -207,6 +208,7 @@ export function ProductCustomizerModal({ product, size, basePrice, onClose, onAd
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

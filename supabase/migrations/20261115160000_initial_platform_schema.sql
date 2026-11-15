@@ -56,7 +56,7 @@ create table public.products (
   unique (restaurant_id, id),
   foreign key (restaurant_id, category_id)
     references public.menu_categories(restaurant_id, id)
-    on delete set null
+    on delete restrict
 );
 
 create table public.product_options (

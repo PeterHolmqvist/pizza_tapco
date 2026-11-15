@@ -3,9 +3,13 @@
 import { useCart } from "@/hooks/useCart";
 import { pizzeriaConfig } from "@/config/pizzeria.config";
 import { CheckoutModal } from "@/components/CheckoutModal";
+import { ProductCustomizerModal } from "@/components/ProductCustomizerModal";
+import { useState } from "react";
 
 export function CartBar() {
-  const { total, totalCount, items, removeItem, clearCart } = useCart();
+  const { total, totalCount, items, removeItem, updateItem, clearCart } = useCart();
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const editingItem = items.find((item) => item.lineId === editingLineId) ?? null;
   const { theme } = pizzeriaConfig;
 
   if (totalCount === 0) return null;
@@ -69,6 +73,7 @@ export function CartBar() {
                   <span className="text-xs font-semibold tabular-nums text-slate-200">
                     {lineTotal} kr
                   </span>
+                  <button type="button" onClick={() => setEditingLineId(item.lineId)} className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-300">Ändra</button>
                   <button
                     type="button"
                     aria-label={`Ta bort en ${item.product.name}`}
@@ -92,6 +97,23 @@ export function CartBar() {
 
         <CheckoutModal />
       </div>
+      {editingItem ? (
+        <ProductCustomizerModal
+          key={editingItem.lineId}
+          product={editingItem.product}
+          size={editingItem.size}
+          basePrice={editingItem.unitPrice - (editingItem.selectedOptions ?? []).reduce((sum, option) => sum + option.price, 0)}
+          initialRemoved={editingItem.removedIngredients}
+          initialSelectedOptions={editingItem.selectedOptions}
+          initialSpecialInstructions={editingItem.specialInstructions}
+          actionLabel="Spara ändringar"
+          onClose={() => setEditingLineId(null)}
+          onAdd={(price, custom) => {
+            updateItem(editingItem.lineId, price, custom);
+            setEditingLineId(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

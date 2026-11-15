@@ -251,7 +251,7 @@ export function CheckoutModal() {
 
                 <div className="mt-2">
                   <Label htmlFor="note" className="text-xs">
-                    Önskemål / ändringar (t.ex. utan lök, extra ost)
+                    Kommentar till hela beställningen (t.ex. ring vid ankomst)
                   </Label>
                   <Input
                     id="note"
@@ -355,7 +355,7 @@ export function CheckoutModal() {
               </p>
               {note && (
                 <p>
-                  <strong>Önskemål:</strong> {note}
+                  <strong>Kommentar till ordern:</strong> {note}
                 </p>
               )}
             </div>

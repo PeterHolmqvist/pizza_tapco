@@ -165,9 +165,16 @@ export default function AdminPage() {
         <section role="dialog" aria-modal="true" aria-labelledby="eta-title" className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
           <h2 id="eta-title" className="text-xl font-bold">Bekräfta beställningen</h2>
           <p className="mt-2 text-sm text-slate-600">Ange ungefär hur många minuter det tar innan order #{pendingAcceptance.order_number} är klar för upphämtning.</p>
-          <label htmlFor="eta-minutes" className="mt-5 block text-sm font-semibold text-slate-700">Beräknad tid (minuter)</label>
-          <input id="eta-minutes" type="number" min="1" max="720" step="1" inputMode="numeric" value={etaMinutes} onChange={(event) => setEtaMinutes(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") confirmAcceptance(); }} className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-lg font-semibold outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100" autoFocus />
-          <p className="mt-2 text-xs text-slate-500">1–720 minuter. Tiden visas för kunden efter bekräftelsen.</p>
+          <span className="mt-5 block text-sm font-semibold text-slate-700">Välj beräknad tid</span>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {[10, 15, 20].map((minutes) => <button key={minutes} type="button" onClick={() => setEtaMinutes(String(minutes))} aria-pressed={etaMinutes === String(minutes)} className={"rounded-lg border px-3 py-3 text-base font-bold transition-colors " + (etaMinutes === String(minutes) ? "border-orange-600 bg-orange-50 text-orange-700 ring-2 ring-orange-100" : "border-slate-300 bg-white text-slate-700 hover:border-orange-300")}>{minutes} min</button>)}
+          </div>
+          <label htmlFor="eta-minutes" className="mt-4 block text-sm font-semibold text-slate-700">Eller ange egen tid</label>
+          <div className="relative mt-2">
+            <input id="eta-minutes" type="number" min="1" max="720" step="1" inputMode="numeric" value={etaMinutes} onChange={(event) => setEtaMinutes(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") confirmAcceptance(); }} className="w-full rounded-lg border border-slate-300 px-4 py-3 pr-16 text-lg font-semibold outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100" autoFocus />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-500">minuter</span>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">Välj 10, 15 eller 20 minuter, eller ange valfri tid mellan 1 och 720 minuter.</p>
           <div className="mt-6 flex gap-3">
             <button type="button" onClick={() => setPendingAcceptance(null)} className="flex-1 rounded-lg border border-slate-300 px-4 py-3 font-semibold text-slate-700">Avbryt</button>
             <button type="button" onClick={confirmAcceptance} disabled={!Number.isInteger(Number(etaMinutes)) || Number(etaMinutes) < 1 || Number(etaMinutes) > 720 || working !== null} className="flex-1 rounded-lg bg-orange-600 px-4 py-3 font-bold text-white hover:bg-orange-700 disabled:opacity-50">Bekräfta order</button>

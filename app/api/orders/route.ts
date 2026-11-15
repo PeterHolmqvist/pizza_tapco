@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -185,6 +186,9 @@ export async function POST(request: Request) {
     }
 
     const orderNumber = "T" + Date.now().toString();
+    const trackingToken = randomBytes(32).toString("hex");
+    const trackingTokenHash = createHash("sha256").update(trackingToken).digest("hex");
+    const trackingExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -201,6 +205,8 @@ export async function POST(request: Request) {
         currency: "SEK",
         status: "new",
         payment_status: "pending",
+        customer_tracking_token_hash: trackingTokenHash,
+        customer_tracking_expires_at: trackingExpiresAt,
       })
       .select("id,order_number")
       .single();
@@ -218,7 +224,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Beställningens innehåll kunde inte sparas." }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, orderId: order.id, orderNumber: order.order_number }, { status: 201 });
+    return NextResponse.json({ success: true, orderNumber: order.order_number, trackingToken }, { status: 201 });
   } catch (error) {
     console.error("[orders] Unexpected order API error", error);
     return NextResponse.json({ error: "Ett oväntat fel uppstod när beställningen skulle sparas." }, { status: 500 });

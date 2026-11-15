@@ -22,6 +22,7 @@ type CartContextValue = {
   items: CartItem[];
   addItem: (product: Product, size: PizzaSize, unitPrice: number, custom?: { removedIngredients?: string[]; selectedOptions?: ProductOption[]; specialInstructions?: string }) => void;
   removeItem: (productId: string, size: PizzaSize, lineId?: string) => void;
+  updateItem: (lineId: string, unitPrice: number, custom: { removedIngredients?: string[]; selectedOptions?: ProductOption[]; specialInstructions?: string }) => void;
   clearCart: () => void;
   setItemCustomizations: (productId: string, size: PizzaSize, custom: { removedIngredients?: string[]; addedExtras?: string[] }, lineId?: string) => void;
   total: number;
@@ -73,6 +74,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  function updateItem(lineId: string, unitPrice: number, custom: { removedIngredients?: string[]; selectedOptions?: ProductOption[]; specialInstructions?: string }) {
+    const selectedOptions = custom.selectedOptions ?? [];
+    setItems((prev) => prev.map((item) => item.lineId === lineId ? {
+      ...item,
+      unitPrice,
+      removedIngredients: custom.removedIngredients?.length ? custom.removedIngredients : undefined,
+      selectedOptions: selectedOptions.length ? selectedOptions : undefined,
+      addedExtras: selectedOptions.length ? selectedOptions.map((option) => option.name) : undefined,
+      specialInstructions: custom.specialInstructions?.trim() || undefined,
+    } : item));
+  }
+
   function clearCart() {
     setItems([]);
   }
@@ -88,7 +101,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const totalCount = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items]);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clearCart, setItemCustomizations, total, totalCount }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateItem, clearCart, setItemCustomizations, total, totalCount }}>
       {children}
     </CartContext.Provider>
   );

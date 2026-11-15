@@ -60,7 +60,7 @@ export async function PATCH(request: Request) {
   const access = await getAuthorizedRestaurant(request);
   if (!access) return NextResponse.json({ error: "Du saknar behörighet." }, { status: 401 });
 
-  let body: { orderId?: string; status?: string; expectedStatus?: string };
+  let body: { orderId?: string; status?: string; expectedStatus?: string; estimatedReadyAt?: string };
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: "Ogiltig förfrågan." }, { status: 400 });
   }
@@ -72,7 +72,17 @@ export async function PATCH(request: Request) {
 
   const now = new Date().toISOString();
   const update: Record<string, unknown> = { status, updated_at: now };
-  if (status === "accepted") update.accepted_at = now;
+  if (status === "accepted") {
+    update.accepted_at = now;
+    if (body.estimatedReadyAt) {
+      const eta = new Date(body.estimatedReadyAt);
+      if (!Number.isFinite(eta.getTime()) || eta.getTime() < Date.now() || eta.getTime() > Date.now() + 12 * 60 * 60 * 1000) {
+        return NextResponse.json({ error: "Ogiltig upphämtningstid." }, { status: 400 });
+      }
+      update.estimated_ready_at = eta.toISOString();
+    }
+  }
+  if (status === "ready") update.ready_at = now;
   if (status === "completed") update.completed_at = now;
 
   const { data, error } = await access.db.from("orders")
@@ -80,7 +90,7 @@ export async function PATCH(request: Request) {
     .eq("id", orderId)
     .eq("restaurant_id", access.restaurant.id)
     .eq("status", expectedStatus)
-    .select("id,status,accepted_at,completed_at")
+    .select("id,status,accepted_at,estimated_ready_at,ready_at,completed_at")
     .maybeSingle();
 
   if (error) {

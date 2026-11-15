@@ -10,6 +10,7 @@ export type OrderItem = {
   quantity: number;
   removedIngredients?: string[];
   addedExtras?: string[];
+  specialInstructions?: string;
 };
 
 export type OrderMode = "pickup" | "delivery";
@@ -36,6 +37,7 @@ export function createOrderFromCart(
     unitPrice: number;
     removedIngredients?: string[];
     addedExtras?: string[];
+    specialInstructions?: string;
   }[],
   total: number,
   customer: OrderCustomer
@@ -48,6 +50,7 @@ export function createOrderFromCart(
     quantity: item.quantity,
     removedIngredients: item.removedIngredients,
     addedExtras: item.addedExtras,
+    specialInstructions: item.specialInstructions,
   }));
 
   return {
@@ -66,7 +69,8 @@ export function orderToMessage(order: Order): string {
     if (item.removedIngredients?.length) parts.push("utan " + item.removedIngredients.join(", "));
     if (item.addedExtras?.length) parts.push("extra " + item.addedExtras.join(", "));
     const customText = parts.length ? " (" + parts.join("; ") + ")" : "";
-    return item.quantity + "× " + item.name + " (" + sizeLabel + ")" + customText + " – " + item.price + " kr/st";
+    const instructionText = item.specialInstructions ? " [Önskemål: " + item.specialInstructions + "]" : "";
+    return item.quantity + "× " + item.name + " (" + sizeLabel + ")" + customText + instructionText + " – " + item.price + " kr/st";
   }).join("\n");
 
   const modeText = order.customer.mode === "pickup"

@@ -1,9 +1,11 @@
 // lib/order.ts
 import type { Product } from "@/data/products";
+import type { PizzaSize } from "@/hooks/useCart";
 
 export type OrderItem = {
   productId: string;
   name: string;
+  size: PizzaSize;
   price: number;
   quantity: number;
   removedIngredients?: string[];
@@ -11,7 +13,6 @@ export type OrderItem = {
 };
 
 export type OrderMode = "pickup" | "delivery";
-
 export type OrderCustomer = {
   name: string;
   phone: string;
@@ -19,7 +20,6 @@ export type OrderCustomer = {
   note?: string;
   mode: OrderMode;
 };
-
 export type Order = {
   id: string;
   items: OrderItem[];
@@ -32,62 +32,47 @@ export function createOrderFromCart(
   cartItems: {
     product: Product;
     quantity: number;
+    size: PizzaSize;
+    unitPrice: number;
     removedIngredients?: string[];
     addedExtras?: string[];
   }[],
   total: number,
   customer: OrderCustomer
 ): Order {
-  const items: OrderItem[] = cartItems.map((i) => ({
-    productId: i.product.id,
-    name: i.product.name,
-    price: i.product.price,
-    quantity: i.quantity,
-    removedIngredients: i.removedIngredients,
-    addedExtras: i.addedExtras,
+  const items: OrderItem[] = cartItems.map((item) => ({
+    productId: item.product.id,
+    name: item.product.name,
+    size: item.size,
+    price: item.unitPrice,
+    quantity: item.quantity,
+    removedIngredients: item.removedIngredients,
+    addedExtras: item.addedExtras,
   }));
 
-  const id = Date.now().toString(36);
-  const createdAt = new Date().toISOString();
-
   return {
-    id,
+    id: Date.now().toString(36),
     items,
     total,
     customer,
-    createdAt,
+    createdAt: new Date().toISOString(),
   };
 }
 
 export function orderToMessage(order: Order): string {
-  const lineItems = order.items
-    .map((i) => {
-      const base = `${i.quantity}× ${i.name}`;
-      const parts: string[] = [];
+  const lineItems = order.items.map((item) => {
+    const sizeLabel = item.size === "small" ? "S" : item.size === "medium" ? "M" : "L";
+    const parts: string[] = [];
+    if (item.removedIngredients?.length) parts.push("utan " + item.removedIngredients.join(", "));
+    if (item.addedExtras?.length) parts.push("extra " + item.addedExtras.join(", "));
+    const customText = parts.length ? " (" + parts.join("; ") + ")" : "";
+    return item.quantity + "× " + item.name + " (" + sizeLabel + ")" + customText + " – " + item.price + " kr/st";
+  }).join("\n");
 
-      if (i.removedIngredients?.length) {
-        parts.push(`utan ${i.removedIngredients.join(", ")}`);
-      }
+  const modeText = order.customer.mode === "pickup"
+    ? "Avhämtning."
+    : "Hemleverans till: " + order.customer.address + ".";
+  const note = order.customer.note ? " Kommentar: " + order.customer.note + "." : "";
 
-      if (i.addedExtras?.length) {
-        parts.push(`extra ${i.addedExtras.join(", ")}`);
-      }
-
-      if (!parts.length) return base;
-      return `${base} (${parts.join("; ")})`;
-    })
-    .join(", ");
-
-  const base = `Hej! Jag vill beställa: ${lineItems}. Totalt ${order.total} kr.`;
-
-  const modeText =
-    order.customer.mode === "pickup"
-      ? "Avhämtning."
-      : `Hemleverans till: ${order.customer.address}.`;
-
-  const namePhone = `Namn: ${order.customer.name}, Tel: ${order.customer.phone}.`;
-
-  const note = order.customer.note ? ` Kommentar: ${order.customer.note}.` : "";
-
-  return `${base} ${modeText} ${namePhone}${note}`;
+  return "Hej! Jag vill beställa:\n" + lineItems + "\nTotalt " + order.total + " kr. " + modeText + " Namn: " + order.customer.name + ", Tel: " + order.customer.phone + "." + note;
 }

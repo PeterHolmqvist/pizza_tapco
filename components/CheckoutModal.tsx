@@ -27,6 +27,7 @@ export function CheckoutModal() {
   } = useCart();
 
   const [step, setStep] = useState<1 | 2>(1);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
@@ -94,7 +95,9 @@ export function CheckoutModal() {
   return (
     <>
     <Dialog
+      open={checkoutOpen}
       onOpenChange={(open) => {
+        setCheckoutOpen(open);
         if (!open) {
           setStep(1);
         }
@@ -161,7 +164,16 @@ export function CheckoutModal() {
                           ) : null}
                         </div>
                         <div className="flex flex-col items-end gap-1">
-                          <button type="button" onClick={() => setEditingLineId(item.lineId)} className="text-[10px] text-slate-300 underline underline-offset-2 hover:text-white">Ändra</button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingLineId(item.lineId);
+                              setCheckoutOpen(false);
+                            }}
+                            className="text-[10px] text-slate-300 underline underline-offset-2 hover:text-white"
+                          >
+                            Ändra
+                          </button>
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
@@ -337,10 +349,14 @@ export function CheckoutModal() {
         initialSelectedOptions={editingItem.selectedOptions}
         initialSpecialInstructions={editingItem.specialInstructions}
         actionLabel="Spara ändringar"
-        onClose={() => setEditingLineId(null)}
+        onClose={() => {
+          setEditingLineId(null);
+          setCheckoutOpen(true);
+        }}
         onAdd={(price, custom) => {
           updateItem(editingItem.lineId, price, custom);
           setEditingLineId(null);
+          setCheckoutOpen(true);
         }}
       />
     ) : null}

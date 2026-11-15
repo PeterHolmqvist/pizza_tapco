@@ -39,9 +39,12 @@ export function CartBar() {
                 key={item.lineId}
                 className="flex justify-between items-center gap-2"
               >
-                <span>
-                  {item.quantity}× {item.product.name} ({sizeLabel})
-                </span>
+                <div className="min-w-0 flex-1">
+                  <span>{item.quantity}× {item.product.name} ({sizeLabel})</span>
+                  {item.removedIngredients?.length ? <div className="text-[10px] text-slate-400">Utan {item.removedIngredients.join(", ")}</div> : null}
+                  {item.addedExtras?.length ? <div className="text-[10px] text-slate-400">Extra {item.addedExtras.join(", ")}</div> : null}
+                  {item.specialInstructions ? <div className="text-[10px] text-amber-300">{item.specialInstructions}</div> : null}
+                </div>
                 <button
                   onClick={() => removeItem(item.product.id, item.size, item.lineId)}
                   className="text-[11px] text-red-400 hover:text-red-200"

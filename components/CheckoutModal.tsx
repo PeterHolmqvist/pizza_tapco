@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { useCart } from "@/hooks/useCart";
 import { createOrderFromCart, orderToMessage } from "@/lib/order";
 import { pizzeriaConfig } from "@/config/pizzeria.config";
-import type { Product } from "@/data/products";
 
 export function CheckoutModal() {
   const {
@@ -23,7 +22,6 @@ export function CheckoutModal() {
     clearCart,
     addItem,
     removeItem,
-    setItemCustomizations,
   } = useCart();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -32,13 +30,6 @@ export function CheckoutModal() {
   const [note, setNote] = useState("");
   const [mode, setMode] = useState<"pickup" | "delivery">("pickup");
   const [address, setAddress] = useState("");
-
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-
-  const editingItem =
-    editingKey != null
-      ? items.find((i) => `${i.product.id}-${i.size}` === editingKey) ?? null
-      : null;
 
   const orderText = items
     .map((item) => {
@@ -137,7 +128,7 @@ export function CheckoutModal() {
 
                     return (
                       <div
-                        key={`${item.product.id}-${item.size}`}
+                        key={item.lineId}
                         className="flex justify-between items-center gap-2 border-b border-slate-700/60 pb-1"
                       >
                         <div className="flex flex-col">
@@ -165,7 +156,7 @@ export function CheckoutModal() {
                             <button
                               type="button"
                               onClick={() =>
-                                removeItem(item.product.id, item.size)
+                                removeItem(item.product.id, item.size, item.lineId)
                               }
                               className="w-6 h-6 flex items-center justify-center rounded-full border border-slate-600 text-xs"
                             >
@@ -177,7 +168,8 @@ export function CheckoutModal() {
                                 addItem(
                                   item.product,
                                   item.size,
-                                  item.unitPrice
+                                  item.unitPrice,
+                                  { removedIngredients: item.removedIngredients, selectedOptions: item.selectedOptions }
                                 )
                               }
                               className="w-6 h-6 flex items-center justify-center rounded-full border border-slate-600 text-xs"
@@ -185,15 +177,6 @@ export function CheckoutModal() {
                               +
                             </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEditingKey(`${item.product.id}-${item.size}`)
-                            }
-                            className="text-[11px] px-2 py-0.5 rounded-full border border-slate-600"
-                          >
-                            Anpassa
-                          </button>
                         </div>
                       </div>
                     );
@@ -332,158 +315,8 @@ export function CheckoutModal() {
           </div>
         )}
 
-        {editingItem && (
-          <CustomizeModal
-            product={editingItem.product}
-            initialRemoved={editingItem.removedIngredients}
-            initialAdded={editingItem.addedExtras}
-            onClose={() => setEditingKey(null)}
-            onSave={(custom) => {
-              setItemCustomizations(
-                editingItem.product.id,
-                editingItem.size,
-                custom
-              );
-              setEditingKey(null);
-            }}
-          />
-        )}
       </DialogContent>
     </Dialog>
   );
 }
-
-type CustomizeModalProps = {
-  product: Product;
-  initialRemoved?: string[];
-  initialAdded?: string[];
-  onClose: () => void;
-  onSave: (custom: {
-    removedIngredients?: string[];
-    addedExtras?: string[];
-  }) => void;
-};
-
-function CustomizeModal({
-  product,
-  initialRemoved,
-  initialAdded,
-  onClose,
-  onSave,
-}: CustomizeModalProps) {
-  const [removed, setRemoved] = useState<string[]>(initialRemoved ?? []);
-  const [added, setAdded] = useState<string[]>(initialAdded ?? []);
-
-  const ingredients = product.ingredients ?? [];
-  const extras = product.extras ?? [];
-
-  function toggle(
-    value: string,
-    list: string[],
-    setList: (v: string[]) => void
-  ) {
-    setList(
-      list.includes(value)
-        ? list.filter((x) => x !== value)
-        : [...list, value]
-    );
-  }
-
-  function handleSave() {
-    onSave({
-      removedIngredients: removed.length ? removed : undefined,
-      addedExtras: added.length ? added : undefined,
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-slate-900 border border-slate-700 rounded-lg p-4 w-[90vw] max-w-sm space-y-3 text-sm">
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-semibold">
-            Anpassa {product.name}
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-xs text-slate-400"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {ingredients.length > 0 && (
-            <div>
-              <Label className="text-xs">Ta bort ingredienser</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {ingredients.map((ing) => (
-                  <button
-                    key={ing}
-                    type="button"
-                    onClick={() => toggle(ing, removed, setRemoved)}
-                    className={`text-[11px] px-2 py-1 rounded-full border ${
-                      removed.includes(ing)
-                        ? "border-red-500 bg-red-500/10"
-                        : "border-slate-600"
-                    }`}
-                  >
-                    {ing}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {extras.length > 0 && (
-            <div>
-              <Label className="text-xs">Extra pålägg</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {extras.map((ex) => (
-                  <button
-                    key={ex}
-                    type="button"
-                    onClick={() => toggle(ex, added, setAdded)}
-                    className={`text-[11px] px-2 py-1 rounded-full border ${
-                      added.includes(ex)
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : "border-slate-600"
-                    }`}
-                  >
-                    {ex}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button
-            type="button"
-            size="sm"
-            className="rounded-full bg-red-500 hover:bg-red-600 text-black text-xs"
-            onClick={onClose}
-          >
-            Avbryt
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-xs"
-            onClick={handleSave}
-          >
-            Spara
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-
-
-
 

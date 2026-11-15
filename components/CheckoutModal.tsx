@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -12,11 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCart } from "@/hooks/useCart";
-import { createOrderFromCart, orderToMessage } from "@/lib/order";
-import { pizzeriaConfig } from "@/config/pizzeria.config";
 import { ProductCustomizerModal } from "@/components/ProductCustomizerModal";
 
 export function CheckoutModal() {
+  const router = useRouter();
   const {
     items,
     total,
@@ -68,8 +68,6 @@ export function CheckoutModal() {
       return;
     }
 
-    const whatsappWindow = window.open("about:blank", "_blank");
-
     setIsSubmitting(true);
     try {
       const response = await fetch("/api/orders", {
@@ -99,35 +97,12 @@ export function CheckoutModal() {
         throw new Error(result.error || "Beställningen kunde inte sparas.");
       }
 
-      const order = createOrderFromCart(items, total, {
-        name,
-        phone,
-        note,
-        mode,
-        address: mode === "delivery" ? address : undefined,
-      });
-      const message = encodeURIComponent(
-        "Order " + result.orderNumber + "\\n" + orderToMessage(order)
-      );
-
-      const rawNumber = pizzeriaConfig.whatsappPhone || pizzeriaConfig.phone;
-      const digitsOnly = rawNumber.replace(/\\D/g, "");
-      const waNumber = digitsOnly.startsWith("0")
-        ? "46" + digitsOnly.slice(1)
-        : digitsOnly;
-      const waUrl = `https://wa.me/${waNumber}?text=${message}`;
-
-      if (whatsappWindow) {
-        whatsappWindow.location.href = waUrl;
-      } else {
-        alert("Beställningen är sparad som " + result.orderNumber + ", men webbläsaren blockerade WhatsApp-fönstret.");
-      }
-
+      sessionStorage.setItem("tapco-active-order-tracking", "1");
       clearCart();
       setCheckoutOpen(false);
       setStep(1);
+      router.push("/order/" + result.trackingToken);
     } catch (error) {
-      whatsappWindow?.close();
       alert(error instanceof Error ? error.message : "Ett fel uppstod. Försök igen.");
     } finally {
       setIsSubmitting(false);

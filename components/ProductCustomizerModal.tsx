@@ -10,13 +10,14 @@ type Props = {
   size: PizzaSize;
   basePrice: number;
   onClose: () => void;
-  onAdd: (price: number, custom: { removedIngredients?: string[]; selectedOptions?: ProductOption[] }) => void;
+  onAdd: (price: number, custom: { removedIngredients?: string[]; selectedOptions?: ProductOption[]; specialInstructions?: string }) => void;
 };
 
 export function ProductCustomizerModal({ product, size, basePrice, onClose, onAdd }: Props) {
   const groups = getProductOptionGroups(product.id);
   const [removed, setRemoved] = useState<string[]>([]);
   const [selected, setSelected] = useState<ProductOption[]>([]);
+  const [specialInstructions, setSpecialInstructions] = useState("");
   const total = useMemo(() => basePrice + selected.reduce((sum, option) => sum + option.price, 0), [basePrice, selected]);
 
   function toggleOption(option: ProductOption) {
@@ -77,12 +78,17 @@ export function ProductCustomizerModal({ product, size, basePrice, onClose, onAd
           </section>
         ))}
 
+        <section className="mt-5">
+          <label htmlFor="pizza-special-instructions" className="mb-2 block text-sm font-semibold">Önskemål för denna pizza</label>
+          <textarea id="pizza-special-instructions" value={specialInstructions} onChange={(event) => setSpecialInstructions(event.target.value)} maxLength={180} rows={2} placeholder="T.ex. välgräddad, lite sås…" className="w-full resize-none rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-500" />
+        </section>
+
         <div className="mt-5 flex items-center justify-between border-t border-slate-700 pt-4">
           <div>
             <p className="text-xs text-slate-400">Pris per pizza</p>
             <p className="text-xl font-bold">{total} kr</p>
           </div>
-          <button type="button" onClick={() => onAdd(total, { removedIngredients: removed.length ? removed : undefined, selectedOptions: selected.length ? selected : undefined })} className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700">
+          <button type="button" onClick={() => onAdd(total, { removedIngredients: removed.length ? removed : undefined, selectedOptions: selected.length ? selected : undefined, specialInstructions: specialInstructions.trim() || undefined })} className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700">
             Lägg i varukorg
           </button>
         </div>

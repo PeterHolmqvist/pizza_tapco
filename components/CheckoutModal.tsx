@@ -34,6 +34,7 @@ export function CheckoutModal() {
   const [mode, setMode] = useState<"pickup" | "delivery">("pickup");
   const [address, setAddress] = useState("");
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const editingItem = items.find((item) => item.lineId === editingLineId) ?? null;
 
   const orderText = items
@@ -55,39 +56,82 @@ export function CheckoutModal() {
     })
     .join(", ");
 
-  function handleSend() {
-    if (!name || !phone) {
+  async function handleSend() {
+    if (isSubmitting) return;
+    if (!name.trim() || !phone.trim()) {
       alert("Fyll i namn och telefonnummer.");
       return;
     }
 
-    if (mode === "delivery" && !address) {
+    if (mode === "delivery" && !address.trim()) {
       alert("Fyll i adress för hemleverans.");
       return;
     }
 
-    const order = createOrderFromCart(items, total, {
-      name,
-      phone,
-      note,
-      mode,
-      address: mode === "delivery" ? address : undefined,
-    });
+    const whatsappWindow = window.open("about:blank", "_blank");
 
-    const message = encodeURIComponent(orderToMessage(order));
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer: {
+            name,
+            phone,
+            note,
+            mode,
+            address: mode === "delivery" ? address : undefined,
+          },
+          items: items.map((item) => ({
+            productId: item.product.id,
+            size: item.size,
+            quantity: item.quantity,
+            selectedOptionIds: (item.selectedOptions ?? []).map((option) => option.id),
+            removedIngredients: item.removedIngredients ?? [],
+            specialInstructions: item.specialInstructions,
+          })),
+        }),
+      });
 
-    const rawNumber = pizzeriaConfig.whatsappPhone || pizzeriaConfig.phone;
-    const digitsOnly = rawNumber.replace(/\D/g, "");
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Beställningen kunde inte sparas.");
+      }
 
-    let waNumber = digitsOnly;
-    if (waNumber.startsWith("0")) {
-      waNumber = "46" + waNumber.slice(1);
+      const order = createOrderFromCart(items, total, {
+        name,
+        phone,
+        note,
+        mode,
+        address: mode === "delivery" ? address : undefined,
+      });
+      const message = encodeURIComponent(
+        "Order " + result.orderNumber + "\\n" + orderToMessage(order)
+      );
+
+      const rawNumber = pizzeriaConfig.whatsappPhone || pizzeriaConfig.phone;
+      const digitsOnly = rawNumber.replace(/\\D/g, "");
+      const waNumber = digitsOnly.startsWith("0")
+        ? "46" + digitsOnly.slice(1)
+        : digitsOnly;
+      const waUrl = `https://wa.me/${waNumber}?text=${message}`;
+
+      if (whatsappWindow) {
+        whatsappWindow.location.href = waUrl;
+      } else {
+        alert("Beställningen är sparad som " + result.orderNumber + ", men webbläsaren blockerade WhatsApp-fönstret.");
+      }
+
+      clearCart();
+      setCheckoutOpen(false);
+      setStep(1);
+    } catch (error) {
+      whatsappWindow?.close();
+      alert(error instanceof Error ? error.message : "Ett fel uppstod. Försök igen.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const waUrl = `https://wa.me/${waNumber}?text=${message}`;
-
-    window.open(waUrl, "_blank");
-    clearCart();
   }
 
   const hasItems = items.length > 0;

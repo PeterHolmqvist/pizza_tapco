@@ -105,10 +105,19 @@ export default function AdminPage() {
     const { data } = await supabaseBrowser.auth.getSession();
     const token = data.session?.access_token;
     if (!token) { router.replace("/admin/login"); return; }
+    let estimatedReadyAt: string | undefined;
+    if (status === "accepted") {
+      const minutes = Number(window.prompt("Beräknad tid till upphämtning i minuter:", "20"));
+      if (!Number.isFinite(minutes) || minutes < 1 || minutes > 720) {
+        setWorking(null);
+        return;
+      }
+      estimatedReadyAt = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+    }
     const response = await fetch("/api/admin/orders", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-      body: JSON.stringify({ orderId: order.id, status, expectedStatus: order.status }),
+      body: JSON.stringify({ orderId: order.id, status, expectedStatus: order.status, estimatedReadyAt }),
     });
     const result = await response.json();
     if (!response.ok) setError(result.error || "Statusen kunde inte ändras.");

@@ -15,6 +15,7 @@ type Order = {
   order_type: string; customer_name: string | null; customer_phone: string | null;
   delivery_address: string | null; special_instructions: string | null;
   total: number; currency: string; created_at: string; requested_for: string | null;
+  accepted_at: string | null; estimated_ready_at: string | null; ready_at: string | null;
   order_items: OrderItem[];
 };
 
@@ -181,6 +182,8 @@ export default function AdminPage() {
                     <span className="inline-flex items-center gap-1"><MapPin size={14} />{order.order_type === "delivery" ? "Leverans" : "Avhämtning"}</span>
                   </div>
                   {order.delivery_address && <p className="text-sm text-slate-600">{order.delivery_address}</p>}
+                  {order.estimated_ready_at && !["ready", "completed", "rejected", "cancelled"].includes(order.status) && <p className="inline-flex items-center gap-2 rounded-lg bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-800"><Clock3 size={15} /> Beräknad klar: {timeLabel(order.estimated_ready_at)}</p>}
+                  {order.ready_at && <p className="inline-flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-sm font-semibold text-green-800"><Check size={15} /> Klar {timeLabel(order.ready_at)}</p>}
                   <div className="divide-y divide-slate-100 rounded-lg bg-slate-50 px-3">
                     {(order.order_items || []).map(item => <div key={item.id} className="py-3">
                       <div className="flex justify-between gap-3 text-sm"><span className="font-semibold">{item.quantity} × {item.product_name}</span><span className="shrink-0">{item.line_total} kr</span></div>

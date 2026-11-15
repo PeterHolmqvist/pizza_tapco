@@ -349,9 +349,10 @@ export function CheckoutModal() {
 
             <Button
               onClick={handleSend}
+              disabled={isSubmitting}
               className="w-full rounded-full bg-green-600 hover:bg-green-700 mt-2"
             >
-              Skicka via WhatsApp
+              {isSubmitting ? "Skickar beställning..." : "Skicka beställning"}
             </Button>
           </div>
         )}

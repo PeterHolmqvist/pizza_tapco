@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import type { Product } from "@/data/products";
 import type { ProductOption } from "@/data/product-options";
 
@@ -33,6 +33,18 @@ const CartContext = createContext<CartContextValue | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+
+  useEffect(() => {
+    const protectPage = (event: BeforeUnloadEvent) => {
+      const trackingActive = sessionStorage.getItem("tapco-active-order-tracking") === "1";
+      if (items.length === 0 && !trackingActive) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", protectPage);
+    return () => window.removeEventListener("beforeunload", protectPage);
+  }, [items.length]);
 
   function addItem(product: Product, size: PizzaSize, unitPrice: number, custom: { removedIngredients?: string[]; selectedOptions?: ProductOption[]; specialInstructions?: string } = {}) {
     setItems((prev) => {

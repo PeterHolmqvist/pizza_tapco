@@ -21,6 +21,10 @@ export async function POST(request: Request) {
     const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!url || !secretKey) {
+      console.error("[orders] Missing Supabase environment variable", {
+        hasUrl: Boolean(url),
+        hasSecretKey: Boolean(secretKey),
+      });
       return NextResponse.json({ error: "Order service is not configured." }, { status: 503 });
     }
 
@@ -52,6 +56,17 @@ export async function POST(request: Request) {
       .single();
 
     if (restaurantError || !restaurant) {
+      console.error("[orders] Restaurant lookup failed", {
+        code: restaurantError?.code,
+        message: restaurantError?.message,
+        details: restaurantError?.details,
+        hint: restaurantError?.hint,
+        hasRestaurant: Boolean(restaurant),
+        supabaseHost: (() => {
+          try { return new URL(url).host; } catch { return "invalid-url"; }
+        })(),
+        secretKeyFormat: secretKey.startsWith("sb_secret_") ? "sb_secret" : secretKey.startsWith("eyJ") ? "legacy-jwt" : "other",
+      });
       return NextResponse.json({ error: "Restaurangen är inte konfigurerad ännu." }, { status: 503 });
     }
 
@@ -202,7 +217,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, orderId: order.id, orderNumber: order.order_number }, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("[orders] Unexpected order API error", error);
     return NextResponse.json({ error: "Ett oväntat fel uppstod när beställningen skulle sparas." }, { status: 500 });
   }
 }

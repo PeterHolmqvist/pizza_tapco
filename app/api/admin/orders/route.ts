@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 
 const transitions: Record<string, string[]> = {
-  new: ["accepted", "rejected", "cancelled"],
+  new: ["accepted", "preparing", "rejected", "cancelled"],
   accepted: ["preparing", "cancelled"],
   preparing: ["ready", "cancelled"],
   ready: ["completed"],
@@ -72,7 +72,7 @@ export async function PATCH(request: Request) {
 
   const now = new Date().toISOString();
   const update: Record<string, unknown> = { status, updated_at: now };
-  if (status === "accepted") {
+  if (status === "accepted" || status === "preparing") {
     update.accepted_at = now;
     if (body.estimatedReadyAt) {
       const eta = new Date(body.estimatedReadyAt);

@@ -34,6 +34,15 @@ export async function POST(request: Request) {
     const body = await request.json();
     const customer = body?.customer;
     const items = body?.items as IncomingItem[];
+    const paymentMethod = body?.paymentMethod === "online" ? "online" : body?.paymentMethod === "in_store" || body?.paymentMethod == null ? "in_store" : null;
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+    if (!paymentMethod) {
+      return NextResponse.json({ error: "Välj ett giltigt betalningssätt." }, { status: 400 });
+    }
+    if (paymentMethod === "online" && !stripeSecretKey) {
+      return NextResponse.json({ error: "Onlinebetalning är inte konfigurerad." }, { status: 503 });
+    }
 
     if (!customer || !isText(customer.name, 120) || !isText(customer.phone, 40)) {
       return NextResponse.json({ error: "Namn och telefonnummer krävs." }, { status: 400 });
@@ -205,6 +214,7 @@ export async function POST(request: Request) {
         currency: "SEK",
         status: "new",
         payment_status: "pending",
+        payment_method: paymentMethod,
         customer_tracking_token_hash: trackingTokenHash,
         customer_tracking_expires_at: trackingExpiresAt,
       })
@@ -222,6 +232,67 @@ export async function POST(request: Request) {
     if (itemsError) {
       await supabase.from("orders").delete().eq("id", order.id).eq("restaurant_id", restaurant.id);
       return NextResponse.json({ error: "Beställningens innehåll kunde inte sparas." }, { status: 500 });
+    }
+
+
+    if (paymentMethod === "online") {
+      const origin = new URL(request.url).origin;
+      const form = new URLSearchParams();
+      form.set("mode", "payment");
+      form.set("success_url", `${origin}/order/${trackingToken}?payment=success`);
+      form.set("cancel_url", `${origin}/order/${trackingToken}?payment=cancelled`);
+      form.set("client_reference_id", order.id);
+      form.set("metadata[order_id]", order.id);
+      form.set("metadata[restaurant_id]", restaurant.id);
+      form.set("payment_intent_data[metadata][order_id]", order.id);
+      form.set("payment_intent_data[metadata][restaurant_id]", restaurant.id);
+      form.set("line_items[0][price_data][currency]", "sek");
+      form.set("line_items[0][price_data][unit_amount]", String(Math.round(subtotal * 100)));
+      form.set("line_items[0][price_data][product_data][name]", `Tapco Pizza – order ${order.order_number}`);
+      form.set("line_items[0][quantity]", "1");
+
+      const stripeResponse = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${stripeSecretKey}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: form,
+      });
+      const stripeSession = await stripeResponse.json() as { id?: string; url?: string; error?: { message?: string } };
+
+      if (!stripeResponse.ok || !stripeSession.id || !stripeSession.url) {
+        console.error("[orders] Stripe Checkout creation failed", stripeSession.error?.message);
+        await supabase.from("orders").delete().eq("id", order.id).eq("restaurant_id", restaurant.id);
+        return NextResponse.json({ error: "Betalningen kunde inte startas. Försök igen." }, { status: 502 });
+      }
+
+      const { error: paymentError } = await supabase.from("payments").insert({
+        restaurant_id: restaurant.id,
+        order_id: order.id,
+        provider: "stripe",
+        provider_payment_id: stripeSession.id,
+        amount: subtotal,
+        currency: "SEK",
+        status: "pending",
+      });
+
+      if (paymentError) {
+        console.error("[orders] Payment record insert failed", paymentError.message);
+        await fetch(`https://api.stripe.com/v1/checkout/sessions/${stripeSession.id}/expire`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${stripeSecretKey}` },
+        });
+        await supabase.from("orders").delete().eq("id", order.id).eq("restaurant_id", restaurant.id);
+        return NextResponse.json({ error: "Betalningen kunde inte registreras. Försök igen." }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        orderNumber: order.order_number,
+        trackingToken,
+        checkoutUrl: stripeSession.url,
+      }, { status: 201 });
     }
 
     return NextResponse.json({ success: true, orderNumber: order.order_number, trackingToken }, { status: 201 });

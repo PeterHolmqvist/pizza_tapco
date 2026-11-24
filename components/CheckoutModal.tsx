@@ -32,6 +32,7 @@ export function CheckoutModal() {
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
   const [mode, setMode] = useState<"pickup" | "delivery">("pickup");
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "in_store">("online");
   const [address, setAddress] = useState("");
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,6 +82,7 @@ export function CheckoutModal() {
             mode,
             address: mode === "delivery" ? address : undefined,
           },
+          paymentMethod,
           items: items.map((item) => ({
             productId: item.product.id,
             size: item.size,
@@ -101,6 +103,10 @@ export function CheckoutModal() {
       clearCart();
       setCheckoutOpen(false);
       setStep(1);
+      if (result.checkoutUrl) {
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
       router.push("/order/" + result.trackingToken);
     } catch (error) {
       alert(error instanceof Error ? error.message : "Ett fel uppstod. Försök igen.");
@@ -335,15 +341,25 @@ export function CheckoutModal() {
               )}
             </div>
 
-            <div className="mt-2 flex flex-col items-center gap-1 text-[11px] text-slate-400">
-              <span>Betalning möjlig med</span>
-              <div className="flex items-center gap-3">
-                <img src="/images/swish.png" alt="Swish" className="h-4" />
-                <img src="/images/klarna.png" alt="Klarna" className="h-4" />
-                <img src="/images/kort.png" alt="kort" className="h-4" />
-                <span className="px-2 py-0.5 rounded-full border border-slate-600">
-                  I Butik
-                </span>
+            <div className="mt-3 space-y-2">
+              <Label>Betalningssätt</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("online")}
+                  className={`rounded-xl border px-3 py-3 text-sm font-semibold ${paymentMethod === "online" ? "border-green-500 bg-green-500/15 text-white" : "border-slate-700 bg-slate-800 text-slate-300"}`}
+                >
+                  Betala online
+                  <span className="mt-1 block text-[10px] font-normal opacity-75">Kort via Stripe</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("in_store")}
+                  className={`rounded-xl border px-3 py-3 text-sm font-semibold ${paymentMethod === "in_store" ? "border-green-500 bg-green-500/15 text-white" : "border-slate-700 bg-slate-800 text-slate-300"}`}
+                >
+                  Betala i butik
+                  <span className="mt-1 block text-[10px] font-normal opacity-75">Vid avhämtning</span>
+                </button>
               </div>
             </div>
 
@@ -352,7 +368,7 @@ export function CheckoutModal() {
               disabled={isSubmitting}
               className="w-full rounded-full bg-green-600 hover:bg-green-700 mt-2"
             >
-              {isSubmitting ? "Skickar beställning..." : "Skicka beställning"}
+              {isSubmitting ? "Skickar beställning..." : paymentMethod === "online" ? "Fortsätt till betalning" : "Skicka beställning"}
             </Button>
           </div>
         )}

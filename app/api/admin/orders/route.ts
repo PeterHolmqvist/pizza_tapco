@@ -44,8 +44,9 @@ export async function GET(request: Request) {
   if (!access) return NextResponse.json({ error: "Du saknar behörighet." }, { status: 401 });
 
   const { data, error } = await access.db.from("orders")
-    .select("id,order_number,status,payment_status,order_type,customer_name,customer_phone,delivery_address,special_instructions,subtotal,discount_amount,total,currency,created_at,requested_for,accepted_at,estimated_ready_at,ready_at,completed_at,order_items(id,product_name,quantity,unit_price,selected_options,removed_ingredients,special_instructions,line_total)")
+    .select("id,order_number,status,payment_status,payment_method,order_type,customer_name,customer_phone,delivery_address,special_instructions,subtotal,discount_amount,total,currency,created_at,requested_for,accepted_at,estimated_ready_at,ready_at,completed_at,order_items(id,product_name,quantity,unit_price,selected_options,removed_ingredients,special_instructions,line_total)")
     .eq("restaurant_id", access.restaurant.id)
+    .or("payment_status.eq.paid,payment_method.eq.in_store")
     .order("created_at", { ascending: false })
     .limit(100);
 

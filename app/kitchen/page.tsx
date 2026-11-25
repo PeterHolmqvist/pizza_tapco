@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Check, Clock3, LogOut, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import { Bell, Check, Clock3, LogOut, Phone, RefreshCw, Volume2, VolumeX } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type KitchenItem = {
@@ -18,8 +18,12 @@ type KitchenOrder = {
   id: string;
   order_number: string;
   status: string;
+  payment_status: string;
+  payment_method: string;
   order_type: string;
   customer_name: string | null;
+  customer_phone: string | null;
+  special_instructions: string | null;
   created_at: string;
   estimated_ready_at: string | null;
   order_items: KitchenItem[];
@@ -28,6 +32,24 @@ type KitchenOrder = {
 function clock(value: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("sv-SE", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function orderDate(value: string) {
+  return new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
+}
+
+function paymentLabel(order: KitchenOrder) {
+  if (order.payment_status === "paid") return "BETALD";
+  if (order.payment_method === "in_store") return "BETALAS I BUTIK";
+  if (order.payment_status === "failed") return "BETALNING MISSLYCKADES";
+  return "INVÄNTAR BETALNING";
+}
+
+function paymentStyle(order: KitchenOrder) {
+  if (order.payment_status === "paid") return "bg-emerald-400/15 text-emerald-300 border-emerald-400/30";
+  if (order.payment_status === "failed") return "bg-red-400/15 text-red-300 border-red-400/30";
+  if (order.payment_method === "in_store") return "bg-sky-400/15 text-sky-300 border-sky-400/30";
+  return "bg-amber-400/15 text-amber-200 border-amber-400/30";
 }
 
 export default function KitchenPage() {
@@ -153,9 +175,22 @@ export default function KitchenPage() {
           </span>
         </div>
         <div className="space-y-3 p-4">
-          <div className="flex justify-between text-sm text-slate-300">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-300">
             <span>{order.order_type === "delivery" ? "Leverans" : "Avhämtning"}</span>
-            <span>{clock(order.created_at)}</span>
+            <span>{orderDate(order.created_at)} · {clock(order.created_at)}</span>
+          </div>
+          {(order.customer_name || order.customer_phone) && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900/70 px-3 py-2 text-sm">
+              <span className="font-semibold text-white">{order.customer_name || "Kund"}</span>
+              {order.customer_phone && (
+                <a href={"tel:" + order.customer_phone} className="inline-flex items-center gap-2 font-semibold text-sky-300 underline-offset-2 hover:underline">
+                  <Phone size={15} /> {order.customer_phone}
+                </a>
+              )}
+            </div>
+          )}
+          <div className="inline-flex rounded-full border px-3 py-1 text-xs font-bold " + {paymentStyle(order)}>
+            {paymentLabel(order)}
           </div>
           <div className="space-y-3">
             {order.order_items?.map(item => (
@@ -163,10 +198,11 @@ export default function KitchenPage() {
                 <p className="text-lg font-bold">{item.quantity} × {item.product_name}</p>
                 {!!item.selected_options?.length && <p className="mt-1 text-sm text-slate-300">Tillval: {item.selected_options.map(option => option.name).join(", ")}</p>}
                 {!!item.removed_ingredients?.length && <p className="mt-1 text-sm text-amber-200">Utan: {item.removed_ingredients.join(", ")}</p>}
-                {item.special_instructions && <p className="mt-1 rounded bg-amber-400/10 p-2 text-sm font-semibold text-amber-200">OBS: {item.special_instructions}</p>}
+                {item.special_instructions && <p className="mt-1 rounded bg-amber-400/10 p-2 text-sm font-semibold text-amber-200">Önskemål: {item.special_instructions}</p>}
               </div>
             ))}
           </div>
+          {order.special_instructions && <div className="rounded-xl border border-violet-400/30 bg-violet-400/10 p-3"><p className="text-xs font-bold uppercase tracking-wide text-violet-200">Kommentar till ordern</p><p className="mt-1 whitespace-pre-wrap text-sm font-medium text-white">{order.special_instructions}</p></div>}
           {mode === "preparing" && <div className="rounded-xl bg-slate-900 px-3 py-3 text-center"><p className="text-xs text-slate-400">Beräknad upphämtning</p><p className="text-xl font-black text-sky-300">{clock(order.estimated_ready_at)}</p><p className={"text-sm font-semibold " + (timeLeft === "Tiden passerad" ? "text-amber-300" : "text-slate-300")}>{timeLeft}</p></div>}
           {mode === "new" && <button disabled={working === order.id} onClick={() => { setMinutes(15); setPending(order); }} className="w-full rounded-xl bg-orange-500 px-4 py-4 text-lg font-black text-white shadow hover:bg-orange-400 disabled:opacity-50">Acceptera · Tillaga</button>}
           {mode === "preparing" && <button disabled={working === order.id} onClick={() => void updateOrder(order, "ready")} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-4 text-lg font-black text-slate-950 hover:bg-emerald-400 disabled:opacity-50">{working === order.id ? "Sparar..." : <><Check size={22} /> Klar</>}</button>}

@@ -189,7 +189,7 @@ export default function KitchenPage() {
               )}
             </div>
           )}
-          <div className="inline-flex rounded-full border px-3 py-1 text-xs font-bold " + {paymentStyle(order)}>
+          <div className={"inline-flex rounded-full border px-3 py-1 text-xs font-bold " + paymentStyle(order)}>
             {paymentLabel(order)}
           </div>
           <div className="space-y-3">

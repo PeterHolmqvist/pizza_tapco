@@ -26,7 +26,7 @@ export default function EconomyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [report, setReport] = useState("sales");
-  const [showSettings, setShowSettings] = useState(false);\n  const [settingsForm, setSettingsForm] = useState({ legal_name: "", organization_number: "", accountant_email: "", vat_rate: "12", timezone: "Europe/Stockholm" });\n  const [settingsMessage, setSettingsMessage] = useState("");\n  const [savingSettings, setSavingSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);\n  const [settingsForm, setSettingsForm] = useState({ legal_name: "", organization_number: "", accountant_email: "", vat_rate: "6", timezone: "Europe/Stockholm" });\n  const [settingsMessage, setSettingsMessage] = useState("");\n  const [savingSettings, setSavingSettings] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -46,7 +46,7 @@ export default function EconomyPage() {
       legal_name: data.settings.legal_name || "",
       organization_number: data.settings.organization_number || "",
       accountant_email: data.settings.accountant_email || "",
-      vat_rate: String(data.settings.vat_rate ?? 12),
+      vat_rate: String(data.settings.vat_rate ?? 6),
       timezone: data.settings.timezone || "Europe/Stockholm"
     });
   }, [data?.settings]);

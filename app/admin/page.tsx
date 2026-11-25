@@ -11,7 +11,7 @@ type OrderItem = {
   special_instructions: string | null; line_total: number;
 };
 type Order = {
-  id: string; order_number: string; status: string; payment_status: string;
+  id: string; order_number: string; status: string; payment_status: string; payment_method: string;
   order_type: string; customer_name: string | null; customer_phone: string | null;
   delivery_address: string | null; special_instructions: string | null;
   total: number; currency: string; created_at: string; requested_for: string | null;
@@ -30,12 +30,12 @@ const nextStatus: Record<string, { status: string; label: string }> = {
   ready: { status: "completed", label: "Avsluta order" },
 };
 
-function paymentLabel(status: string) {
-  if (status === "paid") return { label: "Betald", className: "bg-red-100 text-red-800" };
-  if (status === "pending") return { label: "Betalas i butik", className: "bg-green-100 text-green-800" };
-  if (status === "failed") return { label: "Betalning misslyckades", className: "bg-amber-100 text-amber-800" };
+function paymentLabel(status: string, method: string) {
+  if (status === "paid") return { label: "Betald", className: "bg-green-100 text-green-800" };
+  if (method === "in_store") return { label: "Betalas i butik", className: "bg-blue-100 text-blue-800" };
+  if (status === "failed") return { label: "Betalning misslyckades", className: "bg-red-100 text-red-800" };
   if (status === "refunded") return { label: "Återbetald", className: "bg-slate-100 text-slate-700" };
-  return { label: "Delvis återbetald", className: "bg-amber-100 text-amber-800" };
+  return { label: "Inväntar betalning", className: "bg-amber-100 text-amber-800" };
 }
 function timeLabel(value: string) {
   return new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
@@ -44,11 +44,12 @@ function timeLabel(value: string) {
 export default function AdminPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [unpaidOrders, setUnpaidOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [sound, setSound] = useState(false);
-  const [tab, setTab] = useState<"active" | "history">("active");
+  const [tab, setTab] = useState<"active" | "history" | "unpaid">("active");
   const [pendingAcceptance, setPendingAcceptance] = useState<Order | null>(null);
   const [etaMinutes, setEtaMinutes] = useState("20");
   const lastNewCount = useRef(0);
@@ -71,6 +72,7 @@ export default function AdminPage() {
     if (!response.ok) setError(result.error || "Kunde inte hämta ordrar.");
     else {
       const nextOrders = result.orders as Order[];
+      setUnpaidOrders((result.unpaidOrders || []) as Order[]);
       const newCount = nextOrders.filter(order => order.status === "new").length;
       if (newCount > lastNewCount.current && soundEnabled.current) {
         try {
@@ -147,6 +149,7 @@ export default function AdminPage() {
   ), [orders, tab]);
   const newCount = orders.filter(order => order.status === "new").length;
   const activeCount = orders.filter(order => !["completed", "rejected", "cancelled"].includes(order.status)).length;
+  const unpaidCount = unpaidOrders.length;
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -190,14 +193,40 @@ export default function AdminPage() {
         <div className="mb-4 flex rounded-xl bg-white p-1 shadow-sm">
           <button onClick={() => setTab("active")} className={"flex-1 rounded-lg px-3 py-3 text-sm font-semibold " + (tab === "active" ? "bg-slate-900 text-white" : "text-slate-600")}>Aktiva ({activeCount})</button>
           <button onClick={() => setTab("history")} className={"flex-1 rounded-lg px-3 py-3 text-sm font-semibold " + (tab === "history" ? "bg-slate-900 text-white" : "text-slate-600")}>Historik</button>
+          <button onClick={() => setTab("unpaid")} className={"flex-1 rounded-lg px-3 py-3 text-sm font-semibold " + (tab === "unpaid" ? "bg-slate-900 text-white" : "text-slate-600")}>Obetalda online ({unpaidCount})</button>
         </div>
 
         {error && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
         {loading ? <div className="py-16 text-center text-slate-500">Hämtar beställningar...</div> :
+          tab === "unpaid" ? unpaidOrders.length === 0 ?
+            <div className="rounded-xl bg-white px-4 py-14 text-center shadow-sm"><Check className="mx-auto mb-3 text-green-500" size={30} /><p className="font-semibold">Inga obetalda onlineordrar</p><p className="mt-1 text-sm text-slate-500">Misslyckade och avbrutna betalningsförsök visas här.</p></div> :
+            <div className="grid gap-3 md:grid-cols-2">
+              {unpaidOrders.map(order => {
+                const payment = paymentLabel(order.payment_status, order.payment_method);
+                return <article key={order.id} className="overflow-hidden rounded-xl border border-amber-200 bg-white shadow-sm">
+                  <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
+                    <div><p className="text-xs text-slate-500">{timeLabel(order.created_at)}</p><h2 className="text-xl font-bold">#{order.order_number}</h2><p className="mt-1 text-sm text-slate-600">{order.order_type === "delivery" ? "Leverans" : "Avhämtning"}</p></div>
+                    <span className={"rounded-full px-3 py-1.5 text-xs font-bold " + payment.className}>{payment.label}</span>
+                  </div>
+                  <div className="space-y-3 p-4">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+                      <span className="font-semibold text-slate-900">{order.customer_name || "Kund"}</span>
+                      {order.customer_phone && <a className="inline-flex items-center gap-1 underline" href={"tel:" + order.customer_phone}><Phone size={14} />{order.customer_phone}</a>}
+                    </div>
+                    {order.delivery_address && <p className="text-sm text-slate-600">{order.delivery_address}</p>}
+                    <div className="divide-y divide-slate-100 rounded-lg bg-slate-50 px-3">
+                      {(order.order_items || []).map(item => <div key={item.id} className="py-2 text-sm"><span className="font-semibold">{item.quantity} × {item.product_name}</span>{item.selected_options?.length > 0 && <span className="text-slate-600"> · {item.selected_options.map(option => option.name).join(", ")}</span>}</div>)}
+                    </div>
+                    {order.special_instructions && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900"><strong>Kommentar:</strong> {order.special_instructions}</p>}
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-3"><span className="text-sm text-slate-500">Orderstatus: {statusNames[order.status] || order.status}</span><strong className="text-xl">{Number(order.total).toFixed(2)} kr</strong></div>
+                  </div>
+                </article>;
+              })}
+            </div> :
           visibleOrders.length === 0 ? <div className="rounded-xl bg-white px-4 py-14 text-center shadow-sm"><Bell className="mx-auto mb-3 text-slate-300" size={30} /><p className="font-semibold">Inga {tab === "active" ? "aktiva beställningar" : "avslutade beställningar"}</p><p className="mt-1 text-sm text-slate-500">Nya beställningar visas här automatiskt.</p></div> :
           <div className="grid gap-3 md:grid-cols-2">
             {visibleOrders.map(order => {
-              const payment = paymentLabel(order.payment_status);
+              const payment = paymentLabel(order.payment_status, order.payment_method);
               const action = nextStatus[order.status];
               return <article key={order.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">

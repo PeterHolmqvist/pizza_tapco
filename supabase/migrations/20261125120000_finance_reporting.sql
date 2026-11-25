@@ -3,7 +3,7 @@ create table if not exists public.restaurant_finance_settings (
   restaurant_id uuid primary key references public.restaurants(id) on delete cascade,
   organization_number text,
   legal_name text,
-  vat_rate numeric(5,2) not null default 12.00 check (vat_rate >= 0 and vat_rate <= 100),
+  vat_rate numeric(5,2) not null default 6.00 check (vat_rate >= 0 and vat_rate <= 100),
   timezone text not null default 'Europe/Stockholm',
   accountant_email text,
   updated_at timestamptz not null default now()

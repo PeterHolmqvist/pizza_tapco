@@ -114,7 +114,7 @@ export async function GET(request: Request) {
   const payoutTransactions = stripeTransactions.filter(t => t.type === "payout");
   const payouts = payoutTransactions.reduce((n, t) => n + Math.abs(Number(t.amount || 0)) / 100, 0);
   const fees = sum(stripeTransactions, "fee") / 100;
-  const net = sum(stripeTransactions, "net") / 100;
+  const net = sum(stripeTransactions.filter(t => t.type !== "payout" && t.type !== "payout_cancel" && t.type !== "payout_failure"), "net") / 100;
 
   return NextResponse.json({
     restaurant: access.restaurant.name, from, to, timezone, settings: settings || null,

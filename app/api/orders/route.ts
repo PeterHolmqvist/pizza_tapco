@@ -199,7 +199,7 @@ export async function POST(request: Request) {
       .select("vat_rate")
       .eq("restaurant_id", restaurant.id)
       .maybeSingle();
-    const vatRate = Number(financeSettings?.vat_rate ?? 12);
+    const vatRate = Number(financeSettings?.vat_rate ?? 6);
     const vatAmount = Math.round((subtotal * vatRate / (100 + vatRate)) * 100) / 100;
 
     const orderNumber = "T" + Date.now().toString();

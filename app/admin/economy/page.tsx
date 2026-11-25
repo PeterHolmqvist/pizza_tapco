@@ -26,7 +26,7 @@ export default function EconomyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [report, setReport] = useState("sales");
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);\n  const [settingsForm, setSettingsForm] = useState({ legal_name: "", organization_number: "", accountant_email: "", vat_rate: "12", timezone: "Europe/Stockholm" });\n  const [settingsMessage, setSettingsMessage] = useState("");\n  const [savingSettings, setSavingSettings] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -40,6 +40,25 @@ export default function EconomyPage() {
     setLoading(false);
   }, [from, to, router]);
   useEffect(() => { void load(); }, [load]);
+
+  async function saveSettings() {
+    setSavingSettings(true); setSettingsMessage("");
+    const { data: session } = await supabaseBrowser.auth.getSession();
+    const token = session.session?.access_token;
+    if (!token) { router.replace("/admin/login"); return; }
+    const response = await fetch("/api/admin/economy/settings", {
+      method: "PUT",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({ ...settingsForm, vat_rate: Number(settingsForm.vat_rate) })
+    });
+    const result = await response.json();
+    if (!response.ok) setSettingsMessage(result.error || "Inställningarna kunde inte sparas.");
+    else {
+      setSettingsMessage("Inställningarna är sparade.");
+      setData(current => current ? { ...current, settings: result.settings } : current);
+    }
+    setSavingSettings(false);
+  }
 
   function choosePreset(value: string) {
     setPreset(value);
@@ -91,7 +110,13 @@ export default function EconomyPage() {
           <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b text-xs uppercase text-slate-500"><tr><th className="py-2 pr-3">Datum</th><th className="py-2 pr-3">Referens</th><th className="py-2 pr-3">Betalmetod</th><th className="py-2 pr-3">Status</th><th className="py-2 text-right">Belopp</th></tr></thead><tbody>{data.orders.slice(0,100).map(o=><tr key={o.order_number} className="border-b last:border-0"><td className="py-2 pr-3">{new Date(o.created_at).toLocaleDateString("sv-SE")}</td><td className="py-2 pr-3">{o.order_number}</td><td className="py-2 pr-3">{o.payment_method==="online"?"Online":"På plats"}</td><td className="py-2 pr-3">{o.payment_status}</td><td className="py-2 text-right">{money(Number(o.total))}</td></tr>)}</tbody></table></div>
         </section>
       </>}
-      {showSettings && <section className="rounded-xl border bg-white p-5"><h2 className="font-bold">Ekonomiinställningar</h2><p className="mt-2 text-sm text-slate-600">Företagsuppgifter, moms, kontoplan, tidszon och redovisningskonsultens e-post hanteras här. Inställningsformuläret och e-postutskick kopplas i nästa del.</p></section>}
+      {showSettings && <section className="rounded-xl border bg-white p-5"><h2 className="font-bold">Ekonomiinställningar</h2><p className="mt-1 text-sm text-slate-500">Uppgifterna används i kommande rapportunderlag. Ändrad momssats gäller endast nya ordrar.</p><div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-1 text-sm">Företagsnamn<input value={settingsForm.legal_name} onChange={e=>setSettingsForm(s=>({...s,legal_name:e.target.value}))} className="rounded-lg border p-2" placeholder="Juridiskt företagsnamn"/></label>
+        <label className="grid gap-1 text-sm">Organisationsnummer<input value={settingsForm.organization_number} onChange={e=>setSettingsForm(s=>({...s,organization_number:e.target.value}))} className="rounded-lg border p-2" placeholder="XXXXXX-XXXX"/></label>
+        <label className="grid gap-1 text-sm">Momssats (%)<input type="number" min="0" max="100" step="0.01" value={settingsForm.vat_rate} onChange={e=>setSettingsForm(s=>({...s,vat_rate:e.target.value}))} className="rounded-lg border p-2"/></label>
+        <label className="grid gap-1 text-sm">Redovisningskonsultens e-post<input type="email" value={settingsForm.accountant_email} onChange={e=>setSettingsForm(s=>({...s,accountant_email:e.target.value}))} className="rounded-lg border p-2" placeholder="namn@byra.se"/></label>
+        <label className="grid gap-1 text-sm sm:col-span-2">Tidszon<select value={settingsForm.timezone} onChange={e=>setSettingsForm(s=>({...s,timezone:e.target.value}))} className="rounded-lg border p-2"><option value="Europe/Stockholm">Sverige – Europe/Stockholm</option><option value="Europe/Helsinki">Finland – Europe/Helsinki</option><option value="UTC">UTC</option></select></label>
+      </div>{settingsMessage && <p role="status" className="mt-3 text-sm text-slate-600">{settingsMessage}</p>}<button disabled={savingSettings} onClick={()=>void saveSettings()} className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{savingSettings?"Sparar…":"Spara inställningar"}</button></section>}
       <p className="text-xs text-slate-400">Underlaget bygger på orderdata och Stripe-transaktioner. Kontrollera moms- och redovisningsinställningar med er redovisningskonsult.</p>
     </section>
     <style jsx global>{`@media print { header, details, button, .text-xs.text-slate-400 { display:none!important } main { background:white!important } section { break-inside:avoid } }`}</style>

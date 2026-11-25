@@ -194,6 +194,14 @@ export async function POST(request: Request) {
       await supabase.from("customers").update({ name: customer.name.trim() }).eq("id", customerId);
     }
 
+    const { data: financeSettings } = await supabase
+      .from("restaurant_finance_settings")
+      .select("vat_rate")
+      .eq("restaurant_id", restaurant.id)
+      .maybeSingle();
+    const vatRate = Number(financeSettings?.vat_rate ?? 12);
+    const vatAmount = Math.round((subtotal * vatRate / (100 + vatRate)) * 100) / 100;
+
     const orderNumber = "T" + Date.now().toString();
     const trackingToken = randomBytes(32).toString("hex");
     const trackingTokenHash = createHash("sha256").update(trackingToken).digest("hex");
@@ -211,6 +219,8 @@ export async function POST(request: Request) {
         special_instructions: isText(customer.note, 500) ? customer.note.trim() : null,
         subtotal,
         total: subtotal,
+        vat_rate: vatRate,
+        vat_amount: vatAmount,
         currency: "SEK",
         status: "new",
         payment_status: "pending",

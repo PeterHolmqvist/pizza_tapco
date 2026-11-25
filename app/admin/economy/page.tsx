@@ -7,7 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type ReportData = {
   restaurant: string; from: string; to: string;
-  summary: { sales: number; online: number; refunds: number; orderCount: number; stripeFees: number; stripeNet: number; vatKnown: boolean; vat: number };
+  summary: { sales: number; online: number; refunds: number; orderCount: number; stripeFees: number; stripeNet: number; payouts: number; vatKnown: boolean; vat: number };
   orders: { order_number: string; created_at: string; total: number; payment_method: string; payment_status: string; vat_rate: number | null; vat_amount: number | null }[];
   stripeTransactions: { id: string; type: string; amount: number; fee: number; net: number; currency: string; created: number; description: string }[];
   stripeError: string | null;
@@ -40,6 +40,16 @@ export default function EconomyPage() {
     setLoading(false);
   }, [from, to, router]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!data?.settings) return;
+    setSettingsForm({
+      legal_name: data.settings.legal_name || "",
+      organization_number: data.settings.organization_number || "",
+      accountant_email: data.settings.accountant_email || "",
+      vat_rate: String(data.settings.vat_rate ?? 12),
+      timezone: data.settings.timezone || "Europe/Stockholm"
+    });
+  }, [data?.settings]);
 
   async function saveSettings() {
     setSavingSettings(true); setSettingsMessage("");
@@ -105,7 +115,7 @@ export default function EconomyPage() {
         <div><h2 className="mb-3 text-lg font-bold">Dina rapporter</h2><div className="grid gap-3 md:grid-cols-3">{cards.map(card=>{const Icon=card.icon;return <button key={card.id} onClick={()=>setReport(card.id)} className={"rounded-xl border bg-white p-5 text-left shadow-sm transition "+(report===card.id?"border-orange-400 ring-2 ring-orange-100":"border-slate-200 hover:border-slate-300")}><div className="mb-4 flex items-center justify-between"><Icon className="text-orange-600" size={22}/><span className="text-xs text-slate-500">{card.formats}</span></div><h3 className="font-bold">{card.title}</h3><p className="mt-2 min-h-12 text-sm text-slate-600">{card.desc}</p><span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-orange-700">Visa rapport <span>→</span></span></button>})}</div></div>
         {data.stripeError && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Stripe: {data.stripeError}</p>}
         <section className="rounded-xl border bg-white p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">{cards.find(c=>c.id===report)?.title}</h2><p className="text-sm text-slate-500">{data.orders.length} orderrader · {from} – {to}</p></div><div className="flex gap-2"><button onClick={downloadCsv} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold"><Download size={16}/> CSV</button><button onClick={()=>window.print()} className="flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white"><FileText size={16}/> PDF / Skriv ut</button></div></div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-slate-500">Försäljning</p><p className="text-xl font-bold">{money(data.summary.sales)}</p></div><div><p className="text-xs text-slate-500">Stripe-avgifter</p><p className="text-xl font-bold">{money(data.summary.stripeFees)}</p></div><div><p className="text-xs text-slate-500">Stripe netto</p><p className="text-xl font-bold">{money(data.summary.stripeNet)}</p></div></div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-slate-500">Försäljning</p><p className="text-xl font-bold">{money(data.summary.sales)}</p></div><div><p className="text-xs text-slate-500">Stripe-avgifter</p><p className="text-xl font-bold">{money(data.summary.stripeFees)}</p></div><div><p className="text-xs text-slate-500">Stripe netto</p><p className="text-xl font-bold">{money(data.summary.stripeNet)}</p></div><div><p className="text-xs text-slate-500">Utbetalningar till bank</p><p className="text-xl font-bold">{money(data.summary.payouts)}</p></div><div><p className="text-xs text-slate-500">Registrerad moms</p><p className="text-xl font-bold">{data.summary.vatKnown?money(data.summary.vat):"Ofullständig"}</p></div></div>
           {!data.summary.vatKnown && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Momsuppgifter saknas för en eller flera historiska ordrar. Rapporten markerar dem som ej registrerade i stället för att uppskatta moms.</p>}
           <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b text-xs uppercase text-slate-500"><tr><th className="py-2 pr-3">Datum</th><th className="py-2 pr-3">Referens</th><th className="py-2 pr-3">Betalmetod</th><th className="py-2 pr-3">Status</th><th className="py-2 text-right">Belopp</th></tr></thead><tbody>{data.orders.slice(0,100).map(o=><tr key={o.order_number} className="border-b last:border-0"><td className="py-2 pr-3">{new Date(o.created_at).toLocaleDateString("sv-SE")}</td><td className="py-2 pr-3">{o.order_number}</td><td className="py-2 pr-3">{o.payment_method==="online"?"Online":"På plats"}</td><td className="py-2 pr-3">{o.payment_status}</td><td className="py-2 text-right">{money(Number(o.total))}</td></tr>)}</tbody></table></div>
         </section>

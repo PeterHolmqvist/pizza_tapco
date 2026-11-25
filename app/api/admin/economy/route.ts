@@ -21,49 +21,107 @@ async function authorize(request: Request) {
   return { db, restaurant };
 }
 
+// Convert a restaurant-local calendar date to its UTC boundary.
+function localDateToUtc(date: string, timeZone: string, end = false) {
+  const [year, month, day] = date.split("-").map(Number);
+  const target = Date.UTC(year, month - 1, day + (end ? 1 : 0));
+  let guess = target;
+  for (let i = 0; i < 3; i++) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
+    }).formatToParts(new Date(guess));
+    const values = Object.fromEntries(parts.map(p => [p.type, p.value]));
+    const represented = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day),
+      Number(values.hour), Number(values.minute), Number(values.second));
+    guess += target - represented;
+  }
+  return new Date(guess).toISOString();
+}
+
+async function fetchStripeTransactions(secret: string, start: number, end: number) {
+  const transactions: any[] = [];
+  let startingAfter: string | undefined;
+  let hasMore = true;
+  while (hasMore && transactions.length < 1000) {
+    const query = new URLSearchParams({
+      limit: "100",
+      "created[gte]": String(start),
+      "created[lt]": String(end),
+    });
+    if (startingAfter) query.set("starting_after", startingAfter);
+    const response = await fetch("https://api.stripe.com/v1/balance_transactions?" + query, {
+      headers: { Authorization: "Bearer " + secret }, cache: "no-store"
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body?.error?.message || "Stripe kunde inte läsas.");
+    const page = Array.isArray(body.data) ? body.data : [];
+    transactions.push(...page);
+    hasMore = Boolean(body.has_more);
+    startingAfter = page.at(-1)?.id;
+    if (hasMore && !startingAfter) throw new Error("Stripe returnerade en ofullständig transaktionssida.");
+  }
+  return { transactions, truncated: hasMore };
+}
+
 export async function GET(request: Request) {
   const access = await authorize(request);
   if (!access) return NextResponse.json({ error: "Du saknar behörighet." }, { status: 401 });
   const params = new URL(request.url).searchParams;
   const from = params.get("from");
   const to = params.get("to");
-  if (!from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
+  if (!from || !to || !/^\\d{4}-\\d{2}-\\d{2}$/.test(from) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(to) || from > to) {
     return NextResponse.json({ error: "Välj ett giltigt datumintervall." }, { status: 400 });
   }
-  const start = new Date(from + "T00:00:00.000Z").toISOString();
-  const end = new Date(new Date(to + "T00:00:00.000Z").getTime() + 86400000).toISOString();
-  const [{ data: orders, error }, { data: settings }] = await Promise.all([
-    access.db.from("orders").select("id,order_number,created_at,total,subtotal,discount_amount,currency,payment_method,payment_status,status,vat_rate,vat_amount")
-      .eq("restaurant_id", access.restaurant.id).gte("created_at", start).lt("created_at", end).order("created_at", { ascending: true }).limit(5000),
-    access.db.from("restaurant_finance_settings").select("*").eq("restaurant_id", access.restaurant.id).maybeSingle()
+
+  const { data: settings } = await access.db.from("restaurant_finance_settings")
+    .select("*").eq("restaurant_id", access.restaurant.id).maybeSingle();
+  const timezone = settings?.timezone || "Europe/Stockholm";
+  let start: string, end: string;
+  try {
+    start = localDateToUtc(from, timezone);
+    end = localDateToUtc(to, timezone, true);
+  } catch {
+    return NextResponse.json({ error: "Ogiltig tidszon i ekonomiinställningarna." }, { status: 400 });
+  }
+
+  const [{ data: orders, error }] = await Promise.all([
+    access.db.from("orders")
+      .select("id,order_number,created_at,total,subtotal,discount_amount,currency,payment_method,payment_status,status,vat_rate,vat_amount")
+      .eq("restaurant_id", access.restaurant.id).gte("created_at", start).lt("created_at", end)
+      .order("created_at", { ascending: true }).limit(10000)
   ]);
   if (error) return NextResponse.json({ error: "Försäljningsdata kunde inte hämtas." }, { status: 500 });
 
-  let stripeTransactions: unknown[] = [];
+  let stripeTransactions: any[] = [];
   let stripeError: string | null = null;
   const secret = process.env.STRIPE_SECRET_KEY;
   if (secret) {
     try {
-      const query = new URLSearchParams({ limit: "100", "created[gte]": String(Math.floor(new Date(start).getTime()/1000)), "created[lt]": String(Math.floor(new Date(end).getTime()/1000)) });
-      const response = await fetch("https://api.stripe.com/v1/balance_transactions?" + query.toString(), { headers: { Authorization: "Bearer " + secret }, cache: "no-store" });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body?.error?.message || "Stripe kunde inte läsas.");
-      stripeTransactions = body.data || [];
-      if (body.has_more) stripeError = "Fler än 100 Stripe-transaktioner finns i perioden. Fullständig paginering behöver köras.";
-    } catch (e) { stripeError = e instanceof Error ? e.message : "Stripe-data kunde inte hämtas."; }
+      const result = await fetchStripeTransactions(secret, Math.floor(new Date(start).getTime() / 1000), Math.floor(new Date(end).getTime() / 1000));
+      stripeTransactions = result.transactions;
+      if (result.truncated) stripeError = "Rapporten har nått säkerhetsgränsen 1 000 Stripe-transaktioner. Dela upp perioden för fullständig avstämning.";
+    } catch (e) {
+      stripeError = e instanceof Error ? e.message : "Stripe-data kunde inte hämtas.";
+    }
   } else stripeError = "Stripe är inte konfigurerat.";
 
   const rows = orders || [];
-  const paid = rows.filter((o: any) => o.payment_status === "paid" || o.payment_status === "refunded" || o.payment_status === "partially_refunded");
+  const paid = rows.filter((o: any) => ["paid", "refunded", "partially_refunded"].includes(o.payment_status));
   const sum = (items: any[], key: string) => items.reduce((n, item) => n + Number(item[key] || 0), 0);
-  const refunds = stripeTransactions.filter((t: any) => t.type === "refund").reduce((n: number, t: any) => n + Math.abs(Number(t.amount || 0))/100, 0);
-  const fees = sum(stripeTransactions as any[], "fee") / 100;
-  const net = sum(stripeTransactions as any[], "net") / 100;
+  const refunds = stripeTransactions.filter(t => t.type === "refund")
+    .reduce((n, t) => n + Math.abs(Number(t.amount || 0)) / 100, 0);
+  const payoutTransactions = stripeTransactions.filter(t => t.type === "payout");
+  const payouts = payoutTransactions.reduce((n, t) => n + Math.abs(Number(t.amount || 0)) / 100, 0);
+  const fees = sum(stripeTransactions, "fee") / 100;
+  const net = sum(stripeTransactions, "net") / 100;
+
   return NextResponse.json({
-    restaurant: access.restaurant.name, from, to, settings: settings || null,
+    restaurant: access.restaurant.name, from, to, timezone, settings: settings || null,
     summary: {
-      sales: sum(paid, "total"), online: sum(paid.filter((o: any) => o.payment_method === "online"), "total"),
-      refunds, orderCount: paid.length, stripeFees: fees, stripeNet: net,
+      sales: sum(paid, "total"),
+      online: sum(paid.filter((o: any) => o.payment_method === "online"), "total"),
+      refunds, orderCount: paid.length, stripeFees: fees, stripeNet: net, payouts,
       vatKnown: paid.every((o: any) => o.vat_amount !== null && o.vat_amount !== undefined),
       vat: sum(paid, "vat_amount")
     },

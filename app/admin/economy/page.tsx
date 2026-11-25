@@ -26,7 +26,10 @@ export default function EconomyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [report, setReport] = useState("sales");
-  const [showSettings, setShowSettings] = useState(false);\n  const [settingsForm, setSettingsForm] = useState({ legal_name: "", organization_number: "", accountant_email: "", vat_rate: "6", timezone: "Europe/Stockholm" });\n  const [settingsMessage, setSettingsMessage] = useState("");\n  const [savingSettings, setSavingSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({ legal_name: "", organization_number: "", accountant_email: "", vat_rate: "6", timezone: "Europe/Stockholm" });
+  const [settingsMessage, setSettingsMessage] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");

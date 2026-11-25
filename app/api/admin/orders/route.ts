@@ -54,7 +54,25 @@ export async function GET(request: Request) {
     console.error("[admin/orders] Read failed", error.message);
     return NextResponse.json({ error: "Beställningarna kunde inte hämtas." }, { status: 500 });
   }
-  return NextResponse.json({ orders: data ?? [], restaurant: access.restaurant.name });
+
+  const { data: unpaidOrders, error: unpaidError } = await access.db.from("orders")
+    .select("id,order_number,status,payment_status,payment_method,order_type,customer_name,customer_phone,delivery_address,special_instructions,subtotal,discount_amount,total,currency,created_at,requested_for,accepted_at,estimated_ready_at,ready_at,completed_at,order_items(id,product_name,quantity,unit_price,selected_options,removed_ingredients,special_instructions,line_total)")
+    .eq("restaurant_id", access.restaurant.id)
+    .eq("payment_method", "online")
+    .neq("payment_status", "paid")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (unpaidError) {
+    console.error("[admin/orders] Unpaid order read failed", unpaidError.message);
+    return NextResponse.json({ error: "Obetalda onlineordrar kunde inte hämtas." }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    orders: data ?? [],
+    unpaidOrders: unpaidOrders ?? [],
+    restaurant: access.restaurant.name,
+  });
 }
 
 export async function PATCH(request: Request) {

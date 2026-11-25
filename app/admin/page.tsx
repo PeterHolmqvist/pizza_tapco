@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Check, Clock3, LogOut, MapPin, Phone, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import { Bell, Check, Clock3, LogOut, MapPin, Phone, RefreshCw, Volume2, VolumeX, ChartNoAxesCombined } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type OrderItem = {
@@ -157,6 +157,7 @@ export default function AdminPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div><p className="text-xs font-semibold uppercase tracking-widest text-orange-600">Tapco Pizza</p><h1 className="text-xl font-bold">Ordermottagning</h1></div>
           <div className="flex items-center gap-2">
+            <button onClick={() => router.push("/admin/economy")} aria-label="Ekonomi och rapporter" title="Ekonomi och rapporter" className="rounded-lg border p-2 text-slate-600"><ChartNoAxesCombined size={19} /></button>
             <button onClick={() => { const enabled = !sound; setSound(enabled); soundEnabled.current = enabled; }} aria-label={sound ? "Stäng av ljud" : "Aktivera ljud"} className="rounded-lg border p-2 text-slate-600">{sound ? <Volume2 size={19} /> : <VolumeX size={19} />}</button>
             <button onClick={() => loadOrders(true)} aria-label="Uppdatera" className="rounded-lg border p-2 text-slate-600"><RefreshCw size={19} /></button>
             <button onClick={signOut} aria-label="Logga ut" className="rounded-lg border p-2 text-slate-600"><LogOut size={19} /></button>

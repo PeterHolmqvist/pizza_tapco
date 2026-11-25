@@ -70,7 +70,7 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const from = params.get("from");
   const to = params.get("to");
-  if (!from || !to || !/^\\d{4}-\\d{2}-\\d{2}$/.test(from) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(to) || from > to) {
+  if (!from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
     return NextResponse.json({ error: "Välj ett giltigt datumintervall." }, { status: 400 });
   }
 
